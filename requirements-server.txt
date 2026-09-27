@@ -1,0 +1,13 @@
+# Runtime dependencies for the hosted app.
+#
+# Smaller than requirements.txt on purpose: matplotlib is only needed by the
+# synthetic report generators in synthetic/ and demo/, which never run on the
+# server, and opencv ships as the headless build because a server has no
+# display and the GUI build drags in system libraries it cannot use.
+
+flask>=3.0
+gunicorn>=21.2          # production server; Flask's own is single-threaded
+pymupdf>=1.24           # reads the PDF vector layer - the core of extraction
+numpy>=1.26
+pandas>=2.2
+opencv-python-headless>=4.9   # only used by the scanned-PDF fallback path

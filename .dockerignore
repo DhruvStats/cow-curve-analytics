@@ -1,0 +1,17 @@
+# Keep the image small and free of run-time state.
+__pycache__/
+*.pyc
+.ocr_tmp/
+uploads/
+output/
+venv/
+*.zip
+
+# Test fixtures and generators are not needed to serve the app.
+demo/
+synthetic/
+tests/
+pipeline/csv_synthetic_*/
+generate_*.py
+*.pdf
+!sample_input/sample_report.pdf

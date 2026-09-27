@@ -1,0 +1,15 @@
+# Render reads this and configures the service itself, so there is nothing to
+# fill in on the dashboard beyond picking the repository.
+#
+# Docker is used rather than Render's Python runtime because the app needs the
+# system libraries opencv links against (libgl1, libglib2.0-0), which the
+# plain Python environment does not provide.
+services:
+  - type: web
+    name: cow-curve-analytics
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    # /build returns the build id, so a failed deploy is caught immediately
+    # rather than showing up as a broken page later.
+    healthCheckPath: /build

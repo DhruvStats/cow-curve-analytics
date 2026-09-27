@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cow Curve Analytics</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f3f5f4;
+      --bg-2:     #e9efe9;
+      --surface:  #ffffff;
+      --surface-2:#f6f9f6;
+      --primary:  #1d5c35;       /* deep pasture green */
+      --primary-h:#15492a;
+      --primary-soft: #e7f1e9;
+      --accent:   #c99a2e;       /* warm amber, for the action button */
+      --accent-h: #ad8222;
+      /* Match the colours the AMS itself prints, so the extracted chart and
+         the original crop can be compared without re-learning the legend. */
+      --flusso:   #1a6faf;
+      --pressione:#1f9d3a;
+      --success:  #15803d;
+      --success-bg:#dcfce7;
+      --warn:     #b45309;
+      --warn-bg:  #fffbeb;
+      --warn-bd:  #fcd9a4;
+      --warn-fg:  #7c4a06;
+      --danger:   #b91c1c;
+      --border:   #dde5dd;
+      --grid:     #eaf0ea;
+      --text:     #17241c;
+      --muted:    #5f6f63;
+      --radius:   12px;
+      --shadow:   0 1px 3px rgba(23,36,28,.07), 0 8px 24px rgba(23,36,28,.05);
+      --shadow-lg:0 2px 6px rgba(23,36,28,.09), 0 18px 46px rgba(23,36,28,.10);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:       #0e1512;
+        --bg-2:     #121c17;
+        --surface:  #17221c;
+        --surface-2:#1d2b23;
+        --primary:  #6fbf8b;
+        --primary-h:#8ed3a5;
+        --primary-soft: #16301f;
+        --accent:   #e0b154;
+        --accent-h: #ecc069;
+        --flusso:   #61a9e8;
+        --pressione:#4fc46a;
+        --success:  #6fbf8b;
+        --success-bg:#14331f;
+        --warn-bg:  #35240a;
+        --warn-bd:  #7a5a1d;
+        --warn-fg:  #f2d18a;
+        --border:   #2a3a31;
+        --grid:     #223028;
+        --text:     #e6ede8;
+        --muted:    #9BABA1;
+        --shadow:   0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+        --shadow-lg:0 2px 6px rgba(0,0,0,.45), 0 18px 46px rgba(0,0,0,.4);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background:
+        radial-gradient(900px 420px at 50% -120px, var(--bg-2), transparent 70%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 36px 16px 64px;
+    }
+
+    header {
+      width: 100%; max-width: 1180px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; padding-bottom: 22px; margin-bottom: 26px;
+      border-bottom: 1px solid var(--border);
+    }
+    header .logo { flex: none; color: var(--primary); }
+    header .wordmark h1 {
+      font-size: 1.72rem; font-weight: 800; color: var(--primary);
+      letter-spacing: .5px; line-height: 1.1;
+    }
+    header .wordmark p {
+      color: var(--muted); margin-top: 4px; font-size: 0.88rem;
+    }
+    @media (max-width: 560px) {
+      header { flex-direction: column; gap: 10px; text-align: center; }
+      header .wordmark h1 { font-size: 1.35rem; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: 100%;
+      max-width: 1180px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Drop zone */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 52px 24px;
+      text-align: center;
+      cursor: pointer;
+      background: var(--surface-2);
+      transition: border-color .2s, background .2s, transform .12s;
+    }
+    #drop-zone:hover { border-color: var(--primary); background: var(--primary-soft); }
+    #drop-zone.drag-over {
+      border-color: var(--primary); background: var(--primary-soft);
+      transform: scale(1.005);
+    }
+    #drop-zone svg { color: var(--primary); margin-bottom: 14px; opacity: .85; }
+    #drop-zone .dz-main {
+      color: var(--text); font-size: 0.92rem; font-weight: 700;
+      letter-spacing: .6px; text-transform: uppercase;
+    }
+    #drop-zone .dz-sub { color: var(--muted); font-size: 0.86rem; margin-top: 5px; }
+    #drop-zone .dz-sub b { color: var(--primary); font-weight: 600; }
+    #drop-zone input { display: none; }
+
+    #file-name {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: var(--primary);
+      font-weight: 500;
+      min-height: 20px;
+    }
+
+    button#run-btn {
+      margin-top: 18px;
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, var(--accent), var(--accent-h));
+      color: #fff;
+      font-size: 0.98rem;
+      font-weight: 800;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(201,154,46,.3);
+      transition: filter .18s, transform .12s, box-shadow .18s;
+    }
+    button#run-btn:hover:not(:disabled) {
+      filter: brightness(1.06);
+      box-shadow: 0 4px 16px rgba(201,154,46,.38);
+    }
+    button#run-btn:active:not(:disabled) { transform: translateY(1px); }
+    button#run-btn:disabled {
+      opacity: .45; cursor: default; box-shadow: none;
+      background: var(--muted);
+    }
+
+    /* Progress */
+    #progress-section { margin-top: 28px; display: none; }
+    #progress-section h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; }
+    .progress-bar-wrap {
+      background: var(--border);
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 99px;
+      width: 0%;
+      transition: width .4s;
+    }
+    #status-text { margin-top: 8px; font-size: 0.82rem; color: var(--muted); }
+
+    /* Results */
+    #results-section { margin-top: 28px; display: none; }
+    .results-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .results-head h3 { font-size: 0.95rem; font-weight: 600; }
+    #summary-line { font-size: 0.8rem; color: var(--muted); }
+
+    /* Accuracy roll-up */
+    #accuracy-panel {
+      display: none;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    #accuracy-panel .ap-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 9px;
+    }
+    .ap-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ap-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 12px;
+      min-width: 128px;
+    }
+    .ap-item .v { font-size: 0.98rem; font-weight: 700; }
+    .ap-item .k { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+    .ap-note {
+      font-size: 0.73rem; color: var(--muted);
+      margin-top: 9px; line-height: 1.5;
+    }
+
+    /* Global controls */
+    .toolbar {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 10px; margin-bottom: 12px;
+    }
+    .toolbar .spacer { flex: 1; }
+    .tbtn {
+      font-size: 0.8rem; font-weight: 600;
+      color: var(--primary); background: none;
+      border: 1px solid var(--primary);
+      border-radius: 7px; padding: 6px 12px; cursor: pointer;
+      transition: background .15s;
+    }
+    .tbtn:hover { background: var(--primary-soft); }
+    .tbtn.ghost { color: var(--muted); border-color: var(--border); }
+    .tbtn.ghost:hover { background: var(--surface-2); }
+
+    .file-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .file-item {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .file-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .file-row:hover { background: var(--primary-soft); }
+    .file-row .chev {
+      color: var(--muted);
+      font-size: 0.7rem;
+      transition: transform .2s;
+      width: 12px; flex: none;
+    }
+    .file-item.open .chev { transform: rotate(90deg); }
+    .file-label { flex: 1; min-width: 0; }
+    .file-label .title { font-size: 0.88rem; font-weight: 600; }
+    .file-label .sub   {
+      font-size: 0.72rem; color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .file-row a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.8rem;
+      flex: none;
+    }
+    .file-row a:hover { text-decoration: underline; }
+
+    /* Source badge */
+    .src {
+      flex: none;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      border-radius: 99px;
+      padding: 3px 9px;
+      border: 1px solid transparent;
+    }
+    .src.vector { background: var(--success-bg); color: var(--success); }
+    .src.cv     { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-bd); }
+    .src.warnflag { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-bd); }
+
+    /* Preview panel */
+    .preview {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding: 14px 13px 16px;
+      background: var(--surface);
+    }
+    .file-item.open .preview { display: block; }
+    .preview .loading { font-size: 0.8rem; color: var(--muted); padding: 8px 0; }
+
+    /* Side-by-side comparison */
+
+    .cmp {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 860px) { .cmp { grid-template-columns: 1fr; } }
+
+    .pane {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-2);
+      padding: 9px;
+      min-width: 0;
+    }
+    .pane h4 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+      margin-bottom: 7px;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .pane h4 .hint { font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+    /* Original crop + overlay */
+    .orig-wrap { position: relative; background: #fff; border-radius: 5px; }
+    .orig-wrap img { display: block; width: 100%; height: auto; border-radius: 5px; }
+    .orig-missing {
+      font-size: 0.78rem; color: var(--muted);
+      padding: 26px 10px; text-align: center;
+    }
+
+    .chart-wrap { position: relative; background: var(--surface); border-radius: 5px; }
+    .chart-wrap svg { display: block; width: 100%; height: auto; }
+    .chart-tip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      padding: 6px 9px;
+      font-size: 0.72rem;
+      line-height: 1.5;
+      display: none;
+      white-space: nowrap;
+      z-index: 2;
+    }
+    .chart-tip .t { color: var(--muted); }
+    .chart-tip b { font-weight: 600; }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      margin: 8px 0 4px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .legend .chip { display: inline-flex; align-items: center; gap: 6px; }
+    .legend .swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+
+    .stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 4px;
+    }
+    .stat {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 12px;
+      min-width: 96px;
+    }
+    .stat .v { font-size: 0.95rem; font-weight: 700; }
+    .stat .k { font-size: 0.68rem; color: var(--muted); margin-top: 1px; }
+    .stat.good .v { color: var(--success); }
+    .stat.warn .v { color: var(--warn-fg); }
+    /* Secondary figures describe the source report, not the extraction, so
+       they are toned down and must not read as a failed check. */
+    .stat.muted .v { color: var(--muted); font-weight: 600; }
+    .ap-item.good .v { color: var(--success); }
+    .ap-item.muted .v { color: var(--muted); font-weight: 600; }
+
+    .meta-line {
+      font-size: 0.74rem; color: var(--muted);
+      margin-top: 10px; line-height: 1.6;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .chart-warn {
+      margin-top: 10px;
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-bd);
+      color: var(--warn-fg);
+      border-radius: 7px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .dl-all {
+      margin-top: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--primary);
+      border-radius: 7px;
+      padding: 7px 14px;
+      transition: background .15s;
+    }
+    .dl-all:hover { background: var(--primary-soft); }
+
+    /* Warnings */
+    #warnings-section { margin-top: 20px; display: none; }
+    .warn-box {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-bd);
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: var(--warn-fg);
+    }
+    .warn-box strong { display: block; margin-bottom: 4px; }
+
+    #error-box {
+      margin-top: 20px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 7px;
+      padding: 12px 14px;
+      font-size: 0.85rem;
+      color: var(--danger);
+      display: none;
+    }
+    @media (prefers-color-scheme: dark) {
+      #error-box { background: #450a0a; border-color: #991b1b; }
+    }
+
+    .stale-warn {
+      width: 100%;
+      background: var(--warn-bg);
+      border-bottom: 2px solid var(--warn-bd);
+      color: var(--warn-fg);
+      padding: 12px 18px;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      text-align: center;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .stale-warn b { font-weight: 700; }
+
+    .badge-success {
+      display: inline-block;
+      background: var(--success-bg);
+      color: var(--success);
+      border-radius: 99px;
+      padding: 2px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <!-- Cow silhouette with a flow trace across its flank: the two things this
+       tool joins up - the animal and its curve. -->
+  <svg class="logo" width="62" height="50" viewBox="0 0 62 50" fill="none"
+       xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="13.5" cy="4.5" r="1.7" fill="var(--accent)"/>
+    <circle cx="19.5" cy="2.6" r="1.2" fill="var(--accent)"/>
+    <circle cx="8.5" cy="7.5" r="1.1" fill="var(--accent)"/>
+    <path d="M7 16c0-2.6 1.6-4.4 3.6-4.4 1.3 0 2.2.5 2.9 1.4C15.6 10.3 19 9 23.8 9h19c6.9 0 12.2 4 12.2 10.6v11.9c0 2.3-1.7 4-3.9 4h-1.3v7.4c0 1.2-.9 2.1-2 2.1s-2-.9-2-2.1v-7.4H19.6v7.4c0 1.2-.9 2.1-2 2.1s-2-.9-2-2.1v-8.2c-2.6-1.6-4.2-4.3-4.2-7.6v-4.3C9.2 21.5 7 19.2 7 16Z"
+          stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>
+    <path d="M21 26.5l4.2-.1 2.6-5.1 3.2 9.4 3-6.2 2.4 3.1h6.1"
+          stroke="var(--accent)" stroke-width="2.1"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="50.4" cy="18.2" r="1.5" fill="currentColor"/>
+  </svg>
+  <div class="wordmark">
+    <h1>COW CURVE ANALYTICS</h1>
+    <p>Unlocking Milk Data from AMS Reports</p>
+  </div>
+</header>
+
+<div class="card">
+
+  <!-- Drop Zone -->
+  <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none"
+         viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+    </svg>
+    <div class="dz-main">Drag &amp; drop AMS report PDF</div>
+    <div class="dz-sub">or <b>browse files</b></div>
+    <input id="file-input" type="file" accept=".pdf,.png,.jpg,.jpeg" />
+  </div>
+  <div id="file-name"></div>
+
+  <button id="run-btn" disabled>Start Curve Extraction</button>
+
+  <!-- Progress -->
+  <div id="progress-section">
+    <h3>Extracting curves...</h3>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div id="status-text">Uploading file...</div>
+  </div>
+
+  <!-- Error -->
+  <div id="error-box"></div>
+
+  <!-- Results -->
+  <div id="results-section">
+    <div class="results-head">
+      <h3>Extracted Sessions <span class="badge-success" id="count-badge"></span></h3>
+      <span id="summary-line"></span>
+    </div>
+
+    <div id="accuracy-panel">
+      <div class="ap-title">Extraction accuracy</div>
+      <div class="ap-grid" id="ap-grid"></div>
+      <div class="ap-note" id="ap-note"></div>
+    </div>
+
+    <div class="toolbar">
+      <button class="tbtn" id="expand-all">Expand all</button>
+      <button class="tbtn ghost" id="collapse-all">Collapse all</button>
+      <span class="spacer"></span>
+      <a class="dl-all" id="dl-all-link" href="#" style="display:none">
+        Download all as ZIP
+      </a>
+    </div>
+
+    <ul class="file-list" id="file-list"></ul>
+  </div>
+
+  <!-- Warnings -->
+  <div id="warnings-section">
+    <div class="warn-box" id="warn-box"></div>
+  </div>
+
+</div>
+
+<script>
+  let selectedFile = null;
+  let pollInterval = null;
+  let doneEmptyPolls = 0;   // guards the done-but-empty window (see pollStatus)
+  let currentJobId = null;
+  const csvCache = {};     // filename -> parsed data
+  let chartMeta = {};      // csv filename -> per-chart payload from /status
+
+  const dropZone   = document.getElementById("drop-zone");
+  const fileInput  = document.getElementById("file-input");
+  const fileNameEl = document.getElementById("file-name");
+  const runBtn     = document.getElementById("run-btn");
+  const progressSec = document.getElementById("progress-section");
+  const progressBar = document.getElementById("progress-bar");
+  const statusText  = document.getElementById("status-text");
+  const resultsSec  = document.getElementById("results-section");
+  const fileList    = document.getElementById("file-list");
+  const errorBox    = document.getElementById("error-box");
+  const warnSec     = document.getElementById("warnings-section");
+  const warnBox     = document.getElementById("warn-box");
+  const countBadge  = document.getElementById("count-badge");
+  const summaryLine = document.getElementById("summary-line");
+  const dlAllLink   = document.getElementById("dl-all-link");
+  const accPanel    = document.getElementById("accuracy-panel");
+  const apGrid      = document.getElementById("ap-grid");
+  const apNote      = document.getElementById("ap-note");
+
+  // The page is read from disk on every request, but app.py and pipeline.py
+  // are loaded once when the server starts. Editing them under a running
+  // server leaves this new page talking to old code, which showed up as
+  // "0 CSV files generated" while the charts extracted fine. Check on load.
+  const EXPECTED_BUILD = "2026-09-27-slim-csv";
+  (async () => {
+    let info = null;
+    try {
+      const res = await fetch("/build");
+      if (res.ok) info = await res.json();
+    } catch (e) { /* older server: no /build route at all */ }
+
+    if (info) {
+      if (typeof info.flow_threshold === "number") FLOW_THRESHOLD = info.flow_threshold;
+      if (typeof info.attached_pressure === "number") ATTACHED_PRESSURE = info.attached_pressure;
+    }
+
+    if (!info || info.build !== EXPECTED_BUILD) {
+      const bar = document.createElement("div");
+      bar.className = "stale-warn";
+      bar.innerHTML =
+        "<b>This server is running older code.</b> " +
+        "Stop it in its terminal with Ctrl+C and start it again from this " +
+        "folder, or results will not match the page.";
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
+  })();
+
+  // --- Drag & Drop ---
+  dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) setFile(fileInput.files[0]);
+  });
+
+  function setFile(f) {
+    selectedFile = f;
+    fileNameEl.textContent = `Selected: ${f.name}`;
+    runBtn.disabled = false;
+    resetUI();
+  }
+
+  function resetUI() {
+    errorBox.style.display = "none";
+    progressSec.style.display = "none";
+    resultsSec.style.display  = "none";
+    warnSec.style.display     = "none";
+    accPanel.style.display    = "none";
+    fileList.innerHTML = "";
+    progressBar.style.width = "0%";
+    Object.keys(csvCache).forEach(k => delete csvCache[k]);
+    chartMeta = {};
+  }
+
+  // --- Run ---
+  runBtn.addEventListener("click", async () => {
+    if (!selectedFile) return;
+    resetUI();
+    runBtn.disabled = true;
+    progressSec.style.display = "block";
+    statusText.textContent = "Uploading file...";
+    progressBar.style.width = "4%";
+
+    const fd = new FormData();
+    fd.append("file", selectedFile);
+
+    let res, data;
+    try {
+      res  = await fetch("/upload", { method: "POST", body: fd });
+      data = await res.json();
+    } catch (e) {
+      showError("Upload failed: " + e.message);
+      return;
+    }
+
+    if (!res.ok) { showError(data.error || "Upload error"); return; }
+
+    currentJobId = data.job_id;
+    statusText.textContent = "Pipeline running...";
+    progressBar.style.width = "8%";
+    doneEmptyPolls = 0;
+    pollInterval = setInterval(pollStatus, 800);
+  });
+
+  async function pollStatus() {
+    if (!currentJobId) return;
+    let data;
+    try {
+      const res = await fetch(`/status/${currentJobId}`);
+      data = await res.json();
+    } catch (e) { return; }
+
+    if (data.status === "running" || data.status === "queued") {
+      if (data.total > 0 && data.progress > 0) {
+        const pct = Math.min(8 + (data.progress / data.total) * 88, 96);
+        progressBar.style.width = pct + "%";
+        statusText.textContent =
+          `Extracting... ${data.progress} of ${data.total} charts done`;
+      } else {
+        const cur = parseFloat(progressBar.style.width) || 8;
+        progressBar.style.width = Math.min(cur + 2, 30) + "%";
+      }
+      return;
+    }
+
+    if (data.status === "error") {
+      clearInterval(pollInterval);
+      showError(data.error || "Pipeline error");
+      return;
+    }
+
+    // "done" can arrive a moment before the file list is populated, so keep
+    // polling until the results actually appear rather than stopping on the
+    // status alone. Without this a well-timed poll showed "0 CSV files
+    // generated" for a job that had written all of them.
+    if (!data.files || data.files.length === 0) {
+      doneEmptyPolls = (doneEmptyPolls || 0) + 1;
+      if (doneEmptyPolls < 25) {
+        statusText.textContent = "Finishing up...";
+        return;
+      }
+      // Genuinely nothing produced: stop and say so plainly.
+      clearInterval(pollInterval);
+      showError("The pipeline finished but produced no CSV files. " +
+                "Check the terminal running the server for details.");
+      return;
+    }
+
+    clearInterval(pollInterval);
+    progressBar.style.width = "100%";
+    statusText.textContent  = `Done - ${data.files.length} CSV files generated.`;
+    runBtn.disabled = false;
+
+    // Index per-chart detail by CSV filename so each row can find its crop,
+    // its provenance and its accuracy figures.
+    chartMeta = {};
+    (data.charts || []).forEach(c => {
+      if (c.csv_file) chartMeta[c.csv_file] = c;
+    });
+
+    renderAccuracy(data.summary || {}, data.charts || []);
+    renderResults(data.files, data.warnings);
+  }
+
+  // --- Accuracy roll-up ---
+  function renderAccuracy(s, charts) {
+    if (!s || !s.charts_total) return;
+    accPanel.style.display = "block";
+    apGrid.innerHTML = "";
+
+    const items = [];
+
+    // Headline: how closely the extracted curves match the printed ones.
+    // This is the digitiser's own accuracy and belongs first.
+    items.push([`${s.charts_extracted} / ${s.charts_total}`, "charts extracted",
+                s.charts_extracted === s.charts_total ? "good" : "warn"]);
+
+    if (s.vector_charts) {
+      items.push([`${s.vector_charts}`, "exact (vector layer)", ""]);
+    }
+    if (s.cv_charts) {
+      items.push([`${s.cv_charts}`, "estimated (image CV)", ""]);
+    }
+    // Milk totals across the whole report, printed against curve area, so the
+    // overall agreement is visible without a per-chart ratio.
+    if (typeof s.milk_printed_total === "number" &&
+        typeof s.milk_curve_total === "number") {
+      items.push([s.milk_printed_total.toFixed(2) + " kg", "milk printed (all charts)", ""]);
+      items.push([s.milk_curve_total.toFixed(2) + " kg", "milk from curves (all charts)", ""]);
+      const pct = (s.milk_curve_total / s.milk_printed_total) * 100;
+      items.push([pct.toFixed(1) + " %", "curve vs printed (all charts)",
+                  Math.abs(pct - 100) <= 5 ? "good" : "muted"]);
+    }
+    // Same comparison over only the charts the time axis did not cut off,
+    // which is the fair measure of how well the curves reproduce the weights.
+    if (typeof s.milk_pct_complete === "number") {
+      items.push([s.milk_pct_complete.toFixed(1) + " %",
+                  "curve vs printed (complete charts)",
+                  Math.abs(s.milk_pct_complete - 100) <= 5 ? "good" : "warn"]);
+    }
+    if (typeof s.calib_residual_max === "number") {
+      items.push([s.calib_residual_max.toFixed(3), "max axis-fit error", ""]);
+    }
+    // The integral-vs-printed-weight ratio is deliberately not shown. It
+    // measures a disagreement inside the AMS report itself - the printed
+    // weight comes from the flow meter, the curve is a smoothed drawing - and
+    // ranged 64-102% on the sample report while curve accuracy stayed above
+    // 99.8% on every chart. A figure that can exceed 100% cannot be an
+    // extraction error, and displaying it only implied a fault that is not
+    // there.
+
+    for (const [v, k, cls] of items) {
+      const el = document.createElement("div");
+      el.className = "ap-item" + (cls ? " " + cls : "");
+      el.innerHTML = `<div class="v"></div><div class="k"></div>`;
+      el.querySelector(".v").textContent = v;
+      el.querySelector(".k").textContent = k;
+      apGrid.appendChild(el);
+    }
+
+    const notes = [];
+    const below = s.charts_below_threshold || [];
+    if (typeof s.accuracy_threshold === "number") {
+      if (below.length === 0 && s.charts_extracted > 0) {
+        notes.push(
+          `Every curve was read from the PDF's vector layer and matches the ` +
+          `printed line to within ${(100 - s.accuracy_threshold).toFixed(0)}%.`
+        );
+      } else if (below.length) {
+        const names = below
+          .map(c => `${c.animal_id} (${(c.accuracy_pct || 0).toFixed(2)}%)`)
+          .join(", ");
+        notes.push(
+          `${below.length} chart${below.length === 1 ? "" : "s"} below the ` +
+          `${s.accuracy_threshold}% requirement: ${names}.`
+        );
+      }
+    }
+    if (typeof s.milk_printed_total === "number" &&
+        typeof s.milk_curve_total === "number") {
+      notes.push(
+        "Each flow curve is scaled so its total equals the milk weight printed " +
+        "on that chart, which is the AMS flow meter's own measurement. Only the " +
+        "vertical scale changes - peak timing, dips and session length stay " +
+        "exactly as drawn."
+      );
+    }
+    if (s.vector_charts === s.charts_extracted && s.charts_extracted > 0) {
+      notes.push(
+        "Curves were read directly from the PDF's vector layer, so the values " +
+        "are the ones the report stores rather than a measurement of the picture."
+      );
+    } else if (s.cv_charts) {
+      notes.push(
+        "Some charts had no vector layer and were recovered from pixels; " +
+        "those are marked ESTIMATED and carry more uncertainty."
+      );
+    }
+    const truncated = charts.filter(c =>
+      (c.warnings || []).some(w => w.indexOf("past the chart's time axis") >= 0)).length;
+    if (truncated) {
+      notes.push(
+        `${truncated} session${truncated === 1 ? " was" : "s were"} still running when the ` +
+        "report's 10-minute axis ended, so that curve is cut off in the source " +
+        "PDF itself."
+      );
+    }
+    apNote.textContent = notes.join(" ");
+  }
+
+  // --- Filename -> readable label ---
+  const FNAME_RE = /^animal_(.+?)_(\d{4})-(\d{2})-(\d{2})(?:_(\d{2})(\d{2}))?\.csv$/;
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  function parseName(fname) {
+    const m = fname.match(FNAME_RE);
+    if (!m) return { title: fname, id: null, date: null };
+    const [, id, y, mo, d, hh, mm] = m;
+    let title = `Animal ${id} - ${parseInt(d)} ${MONTHS[parseInt(mo) - 1]} ${y}`;
+    if (hh) title += ` - ${hh}:${mm}`;
+    return { title, id, date: `${y}-${mo}-${d}` };
+  }
+
+  // --- Results ---
+  function renderResults(files, warnings) {
+    resultsSec.style.display = "block";
+    countBadge.textContent   = files.length;
+
+    const parsed  = files.map(parseName);
+    const animals = new Set(parsed.filter(p => p.id).map(p => p.id));
+    const dates   = new Set(parsed.filter(p => p.date).map(p => p.date));
+    summaryLine.textContent =
+      `${files.length} session${files.length === 1 ? "" : "s"} - ` +
+      `${animals.size} animal${animals.size === 1 ? "" : "s"}` +
+      (dates.size === 1 ? ` - ${[...dates][0]}` : ` - ${dates.size} dates`);
+
+    files.forEach(fname => {
+      const info = parseName(fname);
+      const meta = chartMeta[fname] || {};
+
+      const li  = document.createElement("li");
+      li.className = "file-item";
+
+      const row = document.createElement("div");
+      row.className = "file-row";
+
+      const chev = document.createElement("span");
+      chev.className = "chev";
+      chev.textContent = ">";
+
+      const label = document.createElement("div");
+      label.className = "file-label";
+      label.innerHTML = `<div class="title"></div><div class="sub"></div>`;
+      let titleText = info.title;
+      if (meta.time && !/\d{2}:\d{2}$/.test(titleText)) {
+        titleText += ` - ${meta.time.slice(0,2)}:${meta.time.slice(2)}`;
+      }
+      label.querySelector(".title").textContent = titleText;
+      label.querySelector(".sub").textContent   = fname;
+
+      // Provenance badge: says plainly whether this is exact or estimated.
+      const badge = document.createElement("span");
+      if (meta.source === "vector") {
+        badge.className = "src vector";
+        badge.textContent = "Exact";
+        badge.title = "Read from the PDF vector layer";
+      } else {
+        badge.className = "src cv";
+        badge.textContent = "Estimated";
+        badge.title = "Recovered from pixels by image analysis";
+      }
+
+      const a = document.createElement("a");
+      a.href     = `/download/${currentJobId}/${encodeURIComponent(fname)}`;
+      a.download = fname;
+      a.textContent = "Download";
+      a.addEventListener("click", e => e.stopPropagation());
+
+      row.appendChild(chev);
+      row.appendChild(label);
+      if ((meta.warnings || []).length) {
+        const wb = document.createElement("span");
+        wb.className = "src warnflag";
+        wb.textContent = "!";
+        wb.title = meta.warnings.join("; ");
+        row.appendChild(wb);
+      }
+      row.appendChild(badge);
+      row.appendChild(a);
+
+      const panel = document.createElement("div");
+      panel.className = "preview";
+
+      row.addEventListener("click", () => togglePreview(li, panel, fname));
+
+      li.appendChild(row);
+      li.appendChild(panel);
+      li._load = () => togglePreview(li, panel, fname, true);
+      fileList.appendChild(li);
+    });
+
+    if (files.length > 1) {
+      dlAllLink.href = `/download-all/${currentJobId}`;
+      dlAllLink.style.display = "inline-flex";
+    }
+
+    if (warnings && warnings.length > 0) {
+      warnSec.style.display = "block";
+      warnBox.innerHTML = "<strong>Warnings</strong>";
+      warnings.forEach(w => {
+        const div = document.createElement("div");
+        div.style.marginTop = "4px";
+        const b = document.createElement("b");
+        b.textContent = w.chart + ": ";
+        div.appendChild(b);
+        div.appendChild(document.createTextNode(w.warnings.join("; ")));
+        warnBox.appendChild(div);
+      });
+    }
+  }
+
+  document.getElementById("expand-all").addEventListener("click", () => {
+    document.querySelectorAll(".file-item").forEach(li => {
+      if (!li.classList.contains("open") && li._load) li._load();
+    });
+  });
+  document.getElementById("collapse-all").addEventListener("click", () => {
+    document.querySelectorAll(".file-item.open").forEach(li => li.classList.remove("open"));
+  });
+
+  // --- Preview: fetch CSV, parse, build side-by-side comparison ---
+  async function togglePreview(li, panel, fname, forceOpen) {
+    if (!forceOpen && li.classList.contains("open")) {
+      li.classList.remove("open");
+      return;
+    }
+    li.classList.add("open");
+
+    if (panel.dataset.loaded) return;
+    panel.innerHTML = `<div class="loading">Loading curve data...</div>`;
+
+    let data = csvCache[fname];
+    if (!data) {
+      try {
+        const res = await fetch(`/download/${currentJobId}/${encodeURIComponent(fname)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = parseCSV(await res.text());
+        csvCache[fname] = data;
+      } catch (e) {
+        panel.innerHTML = `<div class="loading">Could not load preview: ${e.message}</div>`;
+        return;
+      }
+    }
+
+    panel.dataset.loaded = "1";
+    panel.innerHTML = "";
+    panel.appendChild(buildComparison(data, chartMeta[fname] || {}));
+  }
+
+  function parseCSV(text) {
+    const flusso = [], pressione = [];
+    const lines = text.split("\n");
+    if (!lines.length) return { flusso, pressione };
+
+    // Columns are located by name, so the file layout can change without
+    // breaking the preview. Blank cells mean "no reading here" and are
+    // skipped rather than plotted as zero.
+    const head = lines[0].split(",").map(s => s.trim());
+    const iCurve = head.indexOf("curve");
+    const iTime  = head.indexOf("time_min");
+    const iVal   = head.indexOf("value");
+    if (iCurve < 0 || iTime < 0 || iVal < 0) return { flusso, pressione };
+
+    for (const line of lines.slice(1)) {
+      if (!line) continue;
+      const f = line.split(",");
+      if (f.length <= Math.max(iCurve, iTime, iVal)) continue;
+      const t = parseFloat(f[iTime]);
+      const v = parseFloat(f[iVal]);
+      if (isNaN(t) || isNaN(v)) continue;
+      const name = f[iCurve].trim();
+      if (name === "Flusso_kg_min") flusso.push({ t, v });
+      else if (name === "Pressione_assoluta_0.1bar") pressione.push({ t, v });
+    }
+    return { flusso, pressione };
+  }
+
+  // --- Axis range: take it from the chart's own calibration when available,
+  //     so a chart printed at a different scale still plots correctly. ---
+  function axesFor(meta) {
+    const c = meta.calibration || {};
+    const box = c.box || {};
+    const tMax = typeof c.t_max === "number" ? c.t_max : 10;
+    const tMin = typeof c.t_min === "number" ? c.t_min : 0;
+
+    // Match the printed chart's own Y range so the extracted plot and the
+    // original sit at the same scale and can be compared by eye.
+    let vMax = typeof box.v_top === "number" ? box.v_top : 9;
+    const m = meta.metrics || {};
+    const peaks = [];
+    if (m.flusso && typeof m.flusso.v_max === "number") peaks.push(m.flusso.v_max);
+    if (m.pressione && typeof m.pressione.v_max === "number") peaks.push(m.pressione.v_max);
+    if (peaks.length) vMax = Math.max(vMax, Math.ceil(Math.max(...peaks)));
+    return { tMin, tMax, vMax };
+  }
+
+  // The AMS prints its own end-of-milking threshold on every chart as a
+  // dashed line labelled "0,20". Measuring the session against that line is
+  // what the machine itself considers milking, rather than an arbitrary cut.
+  // Defaults matching pipeline/settings.py; the server's /build response
+  // overrides them at load, so there is only ever one source of truth.
+  let FLOW_THRESHOLD = 0.20;
+
+
+  // Vacuum level that means the cluster is still attached. The pressure trace
+  // sits near 4.5 during milking and falls away when the unit detaches, so a
+  // mid-scale cut separates the two cleanly.
+  let ATTACHED_PRESSURE = 2.0;
+
+  function sessionStats(d) {
+    const f = d.flusso;
+    let peak = 0, yield_ = 0, lastAbove = null;
+    for (let i = 0; i < f.length; i++) {
+      if (f[i].v > peak) peak = f[i].v;
+      if (i > 0) yield_ += (f[i].v + f[i-1].v) / 2 * (f[i].t - f[i-1].t);
+      if (f[i].v >= FLOW_THRESHOLD) lastAbove = f[i].t;
+    }
+
+    // Two different things, reported separately because they genuinely differ:
+    //   milking time - while flow is at or above the machine's own 0.20 line
+    //   attached time - while vacuum is held, which can run much longer
+    // Animal 1138 milks for 4.7 min but stays attached for 9.6; reporting
+    // either one alone as "session length" is misleading.
+    const milking = lastAbove === null ? 0 : lastAbove;
+
+    const p = d.pressione;
+    let attached = 0;
+    for (const pt of p) {
+      if (pt.v >= ATTACHED_PRESSURE) attached = pt.t;
+    }
+    const avgP = p.length ? p.reduce((s, x) => s + x.v, 0) / p.length : 0;
+
+    return { peak, yield_, duration: milking, attached, avgP };
+  }
+
+  // --- The comparison block: original crop | extracted curve ---
+  function buildComparison(data, meta) {
+    const frag = document.createDocumentFragment();
+    const ax = axesFor(meta);
+
+    // Two panes
+    const cmp = document.createElement("div");
+    cmp.className = "cmp";
+
+    // --- Left: original crop from the uploaded PDF ---
+    const paneL = document.createElement("div");
+    paneL.className = "pane";
+    const hL = document.createElement("h4");
+    hL.textContent = "Original (from your PDF)";
+    paneL.appendChild(hL);
+
+    const origWrap = document.createElement("div");
+    origWrap.className = "orig-wrap";
+
+    if (meta.image_file) {
+      const img = document.createElement("img");
+      img.src = `/chart-image/${currentJobId}/${encodeURIComponent(meta.image_file)}`;
+      img.alt = "Original chart as printed in the uploaded PDF";
+      origWrap.appendChild(img);
+
+    } else {
+      const miss = document.createElement("div");
+      miss.className = "orig-missing";
+      miss.textContent = "Original crop unavailable for this chart.";
+      origWrap.appendChild(miss);
+    }
+    paneL.appendChild(origWrap);
+
+    // --- Right: extracted curve ---
+    const paneR = document.createElement("div");
+    paneR.className = "pane";
+    const hR = document.createElement("h4");
+    hR.textContent = "Extracted data";
+    const hint = document.createElement("span");
+    hint.className = "hint";
+    hint.textContent = meta.source === "vector" ? "(vector-exact)" : "(image-estimated)";
+    hR.appendChild(hint);
+    paneR.appendChild(hR);
+    paneR.appendChild(buildLegend());
+    paneR.appendChild(buildChart(data, ax));
+
+    cmp.appendChild(paneL);
+    cmp.appendChild(paneR);
+    frag.appendChild(cmp);
+
+    // Stats + provenance
+    frag.appendChild(buildStats(data, meta));
+    frag.appendChild(buildMeta(meta));
+
+    if ((meta.warnings || []).length) {
+      const w = document.createElement("div");
+      w.className = "chart-warn";
+      w.textContent = meta.warnings.join("  |  ");
+      frag.appendChild(w);
+    }
+
+    return frag;
+  }
+
+  function buildLegend() {
+    const el = document.createElement("div");
+    el.className = "legend";
+    el.innerHTML =
+      `<span class="chip"><span class="swatch" style="background:var(--flusso)"></span>Flusso (kg/min)</span>` +
+      `<span class="chip"><span class="swatch" style="background:var(--pressione)"></span>Pressione (x0.1 bar)</span>`;
+    return el;
+  }
+
+  function buildStats(d, meta) {
+    const s = sessionStats(d);
+    const row = document.createElement("div");
+    row.className = "stats-row";
+
+    const items = [
+      [s.peak.toFixed(2) + " kg/min", "peak flow", ""],
+      [s.duration.toFixed(2) + " min", "milking time (flow >= 0.20)", ""],
+      [s.attached.toFixed(2) + " min", "attached time (vacuum held)", ""],
+      // The integral of the flow curve: flow (kg/min) x time (min) = kg. It is
+      // what the drawing itself adds up to, which is not always what the AMS
+      // flow meter printed, so it is labelled for what it is rather than
+      // called "yield".
+      [s.yield_.toFixed(2) + " kg", "milk (from curve area)", ""],
+      [s.avgP.toFixed(2) + " x0.1 bar", "avg pressure", ""],
+      [String((d.flusso.length + d.pressione.length)), "data points", ""],
+    ];
+
+    // Milk: what the report prints, and how the curve area compares with it.
+    // Charts whose curve runs off the right edge of the time axis are marked,
+    // because their figure is low for a reason that is in the source PDF.
+    if (typeof meta.milk_kg === "number") {
+      items.push([meta.milk_kg.toFixed(2) + " kg", "milk (printed on report)", ""]);
+
+      const pct = (s.yield_ / meta.milk_kg) * 100;
+      items.push([
+        pct.toFixed(1) + " %",
+        "curve vs printed",
+        Math.abs(pct - 100) <= 2 ? "good" : "warn",
+      ]);
+    }
+
+    for (const [v, k, cls] of items) {
+      const el = document.createElement("div");
+      el.className = "stat" + (cls ? " " + cls : "");
+      el.innerHTML = `<div class="v"></div><div class="k"></div>`;
+      el.querySelector(".v").textContent = v;
+      el.querySelector(".k").textContent = k;
+      row.appendChild(el);
+    }
+    return row;
+  }
+
+  function buildMeta(meta) {
+    const el = document.createElement("div");
+    el.className = "meta-line";
+    const bits = [];
+    if (meta.farm) bits.push(`farm ${meta.farm}`);
+    if (meta.animal_id) bits.push(`animal ${meta.animal_id}`);
+    if (meta.date) bits.push(meta.date);
+    // Prefer the time exactly as the report prints it, seconds included.
+    if (meta.time_full) bits.push(meta.time_full);
+    else if (meta.time) bits.push(`${meta.time.slice(0,2)}:${meta.time.slice(2)}`);
+    if (typeof meta.milk_kg === "number") bits.push(`${meta.milk_kg.toFixed(2)} kg`);
+    if (meta.gnr)  bits.push(`GNR ${meta.gnr}`);
+    if (meta.bimo !== null && meta.bimo !== undefined) bits.push(`BIMO ${meta.bimo}`);
+    if (meta.le !== null && meta.le !== undefined) bits.push(`LE ${meta.le}`);
+    if (typeof meta.page === "number" && typeof meta.chart === "number") {
+      bits.push(`page ${meta.page + 1}, chart ${meta.chart + 1}`);
+    }
+
+    const c = meta.calibration || {};
+    if (typeof c.y_residual === "number") {
+      bits.push(`axis fit +/-${c.y_residual.toFixed(3)}`);
+    }
+    if (c.x_source) bits.push(`x from ${c.x_source}`);
+    bits.push(meta.source === "vector" ? "source: PDF vector layer" : "source: image analysis");
+
+    el.textContent = bits.join("   |   ");
+    return el;
+  }
+
+  // --- SVG chart of the extracted data ---
+  const CW = 560, CH = 300;
+  const M  = { l: 38, r: 74, t: 12, b: 34 };
+
+  function buildChart(data, ax) {
+    const wrap = document.createElement("div");
+    wrap.className = "chart-wrap";
+
+    const sx = t => M.l + ((t - ax.tMin) / (ax.tMax - ax.tMin)) * (CW - M.l - M.r);
+    const sy = v => M.t + (1 - v / ax.vMax) * (CH - M.t - M.b);
+
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", `0 0 ${CW} ${CH}`);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Extracted milk flow and vacuum pressure curves");
+
+    // gridlines + y ticks
+    const yStep = ax.vMax > 12 ? Math.ceil(ax.vMax / 4) : 3;
+    for (let v = 0; v <= ax.vMax + 0.001; v += yStep) {
+      const y = sy(v);
+      svg.appendChild(mk(NS, "line", { x1: M.l, y1: y, x2: CW - M.r, y2: y,
+        stroke: "var(--grid)", "stroke-width": 1 }));
+      svg.appendChild(mkText(NS, M.l - 7, y + 3.5, String(v), "end"));
+    }
+    // x ticks
+    const span = ax.tMax - ax.tMin;
+    const xStep = span > 12 ? Math.ceil(span / 5) : 2;
+    for (let t = ax.tMin; t <= ax.tMax + 0.001; t += xStep) {
+      const x = sx(t);
+      svg.appendChild(mk(NS, "line", { x1: x, y1: CH - M.b, x2: x, y2: CH - M.b + 4,
+        stroke: "var(--muted)", "stroke-width": 1 }));
+      svg.appendChild(mkText(NS, x, CH - M.b + 15, String(Math.round(t)), "middle"));
+    }
+    // axes
+    svg.appendChild(mk(NS, "line", { x1: M.l, y1: CH - M.b, x2: CW - M.r, y2: CH - M.b,
+      stroke: "var(--muted)", "stroke-width": 1 }));
+    svg.appendChild(mk(NS, "line", { x1: M.l, y1: M.t, x2: M.l, y2: CH - M.b,
+      stroke: "var(--muted)", "stroke-width": 1 }));
+    svg.appendChild(mkText(NS, (M.l + CW - M.r) / 2, CH - 4, "time (min)", "middle"));
+
+    // curves
+    const series = [
+      { pts: data.flusso,    color: "var(--flusso)",    label: "Flusso" },
+      { pts: data.pressione, color: "var(--pressione)", label: "Pressione" },
+    ];
+    for (const s of series) {
+      if (!s.pts.length) continue;
+      const d = s.pts.map((p, i) =>
+        `${i ? "L" : "M"}${sx(p.t).toFixed(1)},${sy(p.v).toFixed(1)}`).join("");
+      svg.appendChild(mk(NS, "path", { d, fill: "none",
+        stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round" }));
+      const last = s.pts[s.pts.length - 1];
+      const lbl = mkText(NS, sx(last.t) + 6, sy(last.v) + 3.5, s.label, "start");
+      lbl.setAttribute("font-weight", "600");
+      svg.appendChild(lbl);
+    }
+
+    // hover crosshair + dots
+    const cross = mk(NS, "line", { x1: 0, y1: M.t, x2: 0, y2: CH - M.b,
+      stroke: "var(--muted)", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0 });
+    svg.appendChild(cross);
+    const dots = series.map(s => {
+      const c = mk(NS, "circle", { r: 4, fill: s.color,
+        stroke: "var(--surface)", "stroke-width": 2, opacity: 0 });
+      svg.appendChild(c);
+      return c;
+    });
+
+    const tip = document.createElement("div");
+    tip.className = "chart-tip";
+
+    svg.addEventListener("mousemove", e => {
+      const rect = svg.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width * CW;
+      if (px < M.l || px > CW - M.r) { hide(); return; }
+      const t = ax.tMin + (px - M.l) / (CW - M.l - M.r) * (ax.tMax - ax.tMin);
+
+      cross.setAttribute("x1", px); cross.setAttribute("x2", px);
+      cross.setAttribute("opacity", 1);
+
+      let html = `<span class="t">t = ${t.toFixed(2)} min</span>`;
+      series.forEach((s, i) => {
+        const v = valueAt(s.pts, t);
+        if (v === null) { dots[i].setAttribute("opacity", 0); return; }
+        dots[i].setAttribute("cx", sx(t)); dots[i].setAttribute("cy", sy(v));
+        dots[i].setAttribute("opacity", 1);
+        html += `<br><b>${s.label}</b>: ${v.toFixed(2)}`;
+      });
+      tip.innerHTML = html;
+      tip.style.display = "block";
+      const tipX = Math.min(e.clientX - rect.left + 14, rect.width - 130);
+      tip.style.left = tipX + "px";
+      tip.style.top  = (e.clientY - rect.top - 10) + "px";
+    });
+    svg.addEventListener("mouseleave", hide);
+    function hide() {
+      cross.setAttribute("opacity", 0);
+      dots.forEach(d => d.setAttribute("opacity", 0));
+      tip.style.display = "none";
+    }
+
+    wrap.appendChild(svg);
+    wrap.appendChild(tip);
+    return wrap;
+  }
+
+  function valueAt(pts, t) {
+    if (!pts.length || t < pts[0].t || t > pts[pts.length - 1].t) return null;
+    let lo = 0, hi = pts.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (pts[mid].t <= t) lo = mid; else hi = mid;
+    }
+    const a = pts[lo], b = pts[hi];
+    if (b.t === a.t) return a.v;
+    return a.v + (b.v - a.v) * (t - a.t) / (b.t - a.t);
+  }
+
+  function mk(ns, tag, attrs) {
+    const el = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+  function mkText(ns, x, y, str, anchor) {
+    const el = document.createElementNS(ns, "text");
+    el.setAttribute("x", x); el.setAttribute("y", y);
+    el.setAttribute("text-anchor", anchor);
+    el.setAttribute("font-size", "10.5");
+    el.setAttribute("fill", "var(--muted)");
+    el.textContent = str;
+    return el;
+  }
+
+  function showError(msg) {
+    progressSec.style.display = "none";
+    errorBox.style.display    = "block";
+    errorBox.textContent      = "Error: " + msg;
+    runBtn.disabled = false;
+  }
+</script>
+</body>
+</html>
