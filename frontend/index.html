@@ -595,7 +595,12 @@
   // are loaded once when the server starts. Editing them under a running
   // server leaves this new page talking to old code, which showed up as
   // "0 CSV files generated" while the charts extracted fine. Check on load.
-  const EXPECTED_BUILD = "2026-09-27-slim-csv";
+  // Tested by capability rather than by build string. A hardcoded id has to be
+  // edited in two files on every release, and when only one of them is updated
+  // the page accuses a current server of being stale - which is exactly what it
+  // did. Asking whether the server has the features this page relies on cannot
+  // drift, because it checks the thing that actually matters.
+  const REQUIRED_SERVER_FIELDS = ["calibration_bounded"];
   (async () => {
     let info = null;
     try {
@@ -608,7 +613,8 @@
       if (typeof info.attached_pressure === "number") ATTACHED_PRESSURE = info.attached_pressure;
     }
 
-    if (!info || info.build !== EXPECTED_BUILD) {
+    const missing = !info || REQUIRED_SERVER_FIELDS.some(f => !info[f]);
+    if (missing) {
       const bar = document.createElement("div");
       bar.className = "stale-warn";
       bar.innerHTML =
