@@ -759,6 +759,16 @@
     items.push([`${s.charts_extracted} / ${s.charts_total}`, "charts extracted",
                 s.charts_extracted === s.charts_total ? "good" : "warn"]);
 
+    // The digitiser's own accuracy: how far the extracted curve sits from the
+    // line actually drawn, measured by re-rendering each chart and reading it
+    // back independently. Every chart is scored, including the sessions that
+    // run to the end of the time axis, because this asks only whether the
+    // drawn line was read correctly.
+    if (typeof s.accuracy_pct === "number") {
+      items.push([s.accuracy_pct.toFixed(1) + " %", "curve accuracy (all charts)",
+                  s.accuracy_pct >= 99 ? "good" : "warn"]);
+    }
+
     if (s.vector_charts) {
       items.push([`${s.vector_charts}`, "exact (vector layer)", ""]);
     }
