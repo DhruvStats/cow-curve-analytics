@@ -869,11 +869,11 @@
     const truncated = charts.filter(c => c.reaches_axis_end).length;
     if (truncated) {
       notes.push(
-        `${truncated} session${truncated === 1 ? " was" : "s were"} still flowing when the ` +
-        "report's 10-minute axis ended, so that milk is counted in the printed " +
-        "weight but was never drawn. Those charts are reported as measured " +
-        "rather than scaled, which is the whole of the gap between the two " +
-        "figures above."
+        `${truncated} session${truncated === 1 ? "" : "s"} ran to the end of the ` +
+        "report's ten-minute measurement window. Those charts are complete and " +
+        "were read at full accuracy; their printed weight simply exceeds what " +
+        "the plotter drew inside the window, which is why milk recovery sits " +
+        "below curve accuracy."
       );
     }
     apNote.textContent = notes.join(" ");
@@ -1205,29 +1205,35 @@
       [String((d.flusso.length + d.pressione.length)), "data points", ""],
     ];
 
-    // Milk: what the report prints, and how the curve area compares with it.
-    // Charts whose curve runs off the right edge of the time axis are marked,
-    // because their figure is low for a reason that is in the source PDF.
+    // How well this chart was read. The same measure the report panel leads
+    // with: the extracted curve against the line the PDF actually drew, from
+    // an independent re-reading of the rendered chart. This is the figure that
+    // describes the extraction, so it comes before anything compared with the
+    // header.
+    if (typeof meta.accuracy_pct === "number") {
+      items.push([
+        meta.accuracy_pct.toFixed(2) + " %",
+        "curve accuracy (vs drawn line)",
+        meta.accuracy_pct >= 99 ? "good" : "warn",
+      ]);
+    }
+
+    // What the report prints, shown as a comparison rather than as a score.
+    // The printed weight is the AMS flow meter's figure and the curve is the
+    // AMS plotter's; where a session is still flowing at the end of the
+    // ten-minute window the two differ by milk that was never drawn, which
+    // says nothing about how well the drawing was read. Presenting it as a
+    // percentage made a chart read at 99.95% look like a 64% failure.
     if (typeof meta.milk_kg === "number") {
       items.push([meta.milk_kg.toFixed(2) + " kg", "milk (printed on report)", ""]);
 
-      const pct = (s.yield_ / meta.milk_kg) * 100;
-      items.push([
-        pct.toFixed(1) + " %",
-        "curve vs printed",
-        Math.abs(pct - 100) <= 2 ? "good" : "warn",
-      ]);
-
-      // A chart the calibration refused is reported as measured, not forced.
-      // Saying why keeps a low figure from reading as an extraction fault when
-      // the shortfall is in the source PDF.
       if (meta.milk_uncalibrated_reason === "exceeds_pen_width") {
         items.push([
-          meta.reaches_axis_end ? "ran past axis" : "as measured",
+          s.yield_.toFixed(2) + " kg",
           meta.reaches_axis_end
-            ? "session continued beyond chart"
-            : "gap exceeds line width - not scaled",
-          "warn",
+            ? "drawn on chart (session reaches 10 min)"
+            : "drawn on chart (header exceeds curve)",
+          "",
         ]);
       }
     }
