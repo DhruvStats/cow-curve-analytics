@@ -343,6 +343,9 @@ def _summarise(results: list) -> dict:
         if pm:
             summary["milk_pct_complete"] = round(100.0 * cm / pm, 2)
             summary["complete_charts"] = len(complete)
+            # The page needs the total as well, to say how many sessions the
+            # time axis cut off rather than just how many it did not.
+            summary["chart_count"] = len(extracted)
 
     # How many charts the printed-weight calibration actually accepted. A
     # refused chart is reported as measured, so these two counts are what the

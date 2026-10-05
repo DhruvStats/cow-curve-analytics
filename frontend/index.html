@@ -771,16 +771,29 @@
         typeof s.milk_curve_total === "number") {
       items.push([s.milk_printed_total.toFixed(2) + " kg", "milk printed (all charts)", ""]);
       items.push([s.milk_curve_total.toFixed(2) + " kg", "milk from curves (all charts)", ""]);
-      const pct = (s.milk_curve_total / s.milk_printed_total) * 100;
-      items.push([pct.toFixed(1) + " %", "curve vs printed (all charts)",
-                  Math.abs(pct - 100) <= 5 ? "good" : "muted"]);
     }
-    // Same comparison over only the charts the time axis did not cut off,
-    // which is the fair measure of how well the curves reproduce the weights.
+    // Two figures, because they answer two different questions and a single
+    // number hides the distinction.
+    //
+    // Extraction fidelity asks how faithfully the curve was read, over the
+    // charts that draw their whole session. Milk recovery asks how much of the
+    // printed milk the drawing contains at all, over every chart. A session
+    // that runs past the right edge of the time axis lowers the second without
+    // saying anything about the first, because the shortfall is milk the report
+    // never drew rather than milk that was mis-measured.
     if (typeof s.milk_pct_complete === "number") {
       items.push([s.milk_pct_complete.toFixed(1) + " %",
-                  "curve vs printed (complete charts)",
+                  "extraction fidelity (full sessions)",
                   Math.abs(s.milk_pct_complete - 100) <= 5 ? "good" : "warn"]);
+    }
+    if (typeof s.milk_printed_total === "number" &&
+        typeof s.milk_curve_total === "number") {
+      const pct = (s.milk_curve_total / s.milk_printed_total) * 100;
+      const cut = (s.chart_count || 0) - (s.complete_charts || 0);
+      items.push([pct.toFixed(1) + " %",
+                  cut > 0 ? `milk recovery (${cut} session${cut > 1 ? "s" : ""} cut off by axis)`
+                          : "milk recovery (all charts)",
+                  Math.abs(pct - 100) <= 5 ? "good" : "muted"]);
     }
     if (typeof s.calib_residual_max === "number") {
       items.push([s.calib_residual_max.toFixed(3), "max axis-fit error", ""]);
@@ -840,13 +853,17 @@
         "those are marked ESTIMATED and carry more uncertainty."
       );
     }
-    const truncated = charts.filter(c =>
-      (c.warnings || []).some(w => w.indexOf("past the chart's time axis") >= 0)).length;
+    // Driven by the extraction result rather than by a warning string, which
+    // is why this now fires: the warning it used to look for was removed, so
+    // the explanation for the two figures never appeared.
+    const truncated = charts.filter(c => c.reaches_axis_end).length;
     if (truncated) {
       notes.push(
-        `${truncated} session${truncated === 1 ? " was" : "s were"} still running when the ` +
-        "report's 10-minute axis ended, so that curve is cut off in the source " +
-        "PDF itself."
+        `${truncated} session${truncated === 1 ? " was" : "s were"} still flowing when the ` +
+        "report's 10-minute axis ended, so that milk is counted in the printed " +
+        "weight but was never drawn. Those charts are reported as measured " +
+        "rather than scaled, which is the whole of the gap between the two " +
+        "figures above."
       );
     }
     apNote.textContent = notes.join(" ");
