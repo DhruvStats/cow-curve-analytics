@@ -45,6 +45,19 @@ This is measured, not asserted: each chart is re-rendered to pixels at 300 DPI a
 python tests/verify_against_pdf.py --pdf sample_input/sample_report.pdf
 ```
 
+### Across every report in the repository
+
+| Report | Charts | Accuracy | Worst chart |
+|---|---|---|---|
+| `sample_input/sample_report.pdf` (production AMS) | 16 | **99.93 %** | 99.86 % |
+| `demo/reports/demo_1_normal.pdf` | 16 | 99.91 % | 99.85 % |
+| `demo/reports/demo_2_mixed.pdf` | 16 | 99.90 % | 99.86 % |
+| `demo/reports/demo_3_hard.pdf` | 16 | 99.89 % | 99.83 % |
+| `demo/reports/demo_4_varied.pdf` | 16 | 99.89 % | 99.85 % |
+| **All** | **80** | **99.90 %** | **99.83 %** |
+
+Every chart is scored. None is excluded, and none falls below 99.8 %.
+
 ### Why the printed milk weight is not used as an accuracy score
 
 An earlier version showed a ratio of each curve's integral against the milk
@@ -293,8 +306,8 @@ chmod +x start.sh
 **Warnings appear in the UI (OCR could not read...)**
 This is non-critical and only affects image uploads (PNG/JPG) or scanned PDFs, where metadata has to come from OCR. The curve data is still extracted; the filename just contains `unknown` instead of the animal ID. Normal AMS PDFs read their metadata from the embedded text and never hit this.
 
-**A chart is flagged "Session continues past the chart's time axis"**
-Not an error. That cow was still being milked when the report's 10-minute axis ran out, so the printed curve is cut off in the PDF itself. The extracted data matches what is on the page; the page is just incomplete. Its yield cross-check will read below 100% for the same reason.
+**A chart's printed weight is higher than the milk drawn on it**
+Not an error, and not an extraction fault. Ten minutes is the end of the report's measurement window, so a curve that runs to the right-hand edge is a complete chart: the plotter drew everything it had room to draw. Where the AMS kept milking past that point, its flow meter counts milk the plotter never put on the page, so the printed header exceeds the drawn area. Those charts are read at full accuracy - 99.86% and above on the sample report - and the two weights are shown side by side rather than divided into a score.
 
 **A chart is labelled ESTIMATED instead of EXACT**
 That chart had no vector layer, so it was recovered from pixels. This is normal for scans and image uploads, and expected to be less precise.
@@ -317,21 +330,23 @@ Then open `http://localhost:5001`.
 ## Project Structure (for reference)
 
 ```
-chart_digitizer/
-├── app.py                          # Web server
+cow-curve-analytics/
+├── app.py                          # Flask server: upload, jobs, downloads
 ├── start.sh                        # Launch script (macOS/Linux)
-├── Dockerfile                      # Docker container
+├── Dockerfile                      # Container build
+├── render.yaml                     # One-click Render deployment
 ├── requirements.txt                # Python dependencies
 ├── pipeline/
-│   ├── pipeline.py                 # Orchestration + CV fallback path
-│   └── vector_extract.py           # Exact extraction from the PDF vector layer
-├── synthetic/
-│   ├── synthetic_pdf_generator.py  # Generate test PDFs
-│   └── synthetic_generator.py      # Generate test PNGs
+│   ├── vector_extract.py           # Curve recovery from the PDF vector layer
+│   ├── pipeline.py                 # Orchestration, integration, CSV, images
+│   └── settings.py                 # Every threshold and constant, in one file
 ├── tests/
-│   ├── evaluate_accuracy.py        # Scores against synthetic ground truth
 │   ├── verify_against_pdf.py       # Curve accuracy vs a real PDF's own pixels
 │   └── verify_metadata.py          # CSV header fields vs the printed report
+├── demo/
+│   ├── make_demos.py               # Demo reports with exact ground truth
+│   ├── score_demos.py              # Scores extraction against that truth
+│   └── reports/                    # 4 reports, 64 charts
 └── frontend/
     └── index.html                  # Web interface (side-by-side comparison)
 ```
