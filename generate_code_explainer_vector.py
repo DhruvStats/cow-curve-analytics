@@ -302,10 +302,13 @@ def build(path):
     s.append(Paragraph("_series_metrics, _measure_curve_fidelity, _render_chart_image",
                        ss["h3"]))
     s.append(Paragraph(
-        "Peak, integral and duration per series; an optional re-measurement "
-        "against the rasterised page, gated behind RUN_FIDELITY_CHECK because "
-        "it costs about 32 seconds; and the chart crop used for the "
-        "side-by-side comparison in the UI.", ss["body"]))
+        "Peak, integral and duration per series; the chart crop used for the "
+        "side-by-side comparison in the UI; and _measure_curve_fidelity, which "
+        "produces the accuracy figure. It re-renders each chart, reads the "
+        "drawn line back through an independent pixel path and reports the "
+        "distance from the extracted curve, so the check grades the extraction "
+        "without sharing any code with it. Sixteen charts take 1.2 seconds.",
+        ss["body"]))
 
     # ---------------- 4 ----------------
     s.append(H2(4, "pipeline/settings.py"))
@@ -325,7 +328,8 @@ def build(path):
         ["PEN_HALF_WIDTH_KG_MIN", "0.0389", "The calibration bound"],
         ["CALIBRATION_TOLERANCE", "1.15", "Headroom above that bound"],
         ["FLOW_THRESHOLD_KG_MIN", "0.20", "The AMS's own printed cut-off"],
-        ["RUN_FIDELITY_CHECK", "False", "Skips the 32 s raster re-measurement"],
+        ["RUN_FIDELITY_CHECK", "True",
+         "Scores every chart against the drawn line (1.2 s per report)"],
     ], [160, 110, 220]))
 
     # ---------------- 5 ----------------
