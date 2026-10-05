@@ -90,6 +90,23 @@ CSV_DECIMALS = 4
 # dips and session length stay exactly as drawn.
 CALIBRATE_TO_PRINTED_MILK = True
 
+# The curve is drawn with a pen of real width, so the true value lies somewhere
+# inside the ink rather than on one exact height. Half that width is the most
+# the reading can honestly be out by, and therefore the most the calibration
+# above is allowed to move it.
+#
+# A correction larger than this is not resolving ink ambiguity - it is covering
+# milk the chart never drew, which happens when the session ran past the right
+# edge of the time axis. Scaling the visible part to cover it would invent flow
+# that is not in the source, so those curves are left exactly as measured and
+# reported as truncated instead.
+PEN_WIDTH_PT = 1.44
+PEN_HALF_WIDTH_KG_MIN = 0.0389
+
+# A little headroom above the ink bound before refusing, so a curve sitting
+# right at the limit is not rejected over rounding in the area integral.
+CALIBRATION_TOLERANCE = 1.15
+
 # The AMS prints its own end-of-milking threshold on every chart as a dashed
 # line labelled "0,20". Session length is measured against that line, so it
 # matches what the machine itself counts as milking.

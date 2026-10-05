@@ -92,7 +92,7 @@ def run_job(job_id: str, input_path: str, out_dir: str):
 # and tells the user to restart if the running process is older than the files
 # on disk: Python loads app.py and pipeline.py once at startup, so editing them
 # while a server is running leaves the new HTML talking to old code.
-BUILD_ID = "2026-09-27-slim-csv"
+BUILD_ID = "2026-10-06-bounded-calibration"
 
 
 @app.route("/")
@@ -113,6 +113,10 @@ def build():
         "attached_pressure": settings.ATTACHED_PRESSURE,
         "curve_flow": settings.CURVE_FLOW,
         "curve_pressure": settings.CURVE_PRESSURE,
+        # Present only on builds that bound the printed-weight calibration, so
+        # a stale deploy is obvious from this endpoint alone.
+        "calibration_bounded": True,
+        "pen_half_width_kg_min": settings.PEN_HALF_WIDTH_KG_MIN,
     })
 
 
@@ -235,6 +239,10 @@ def _chart_payload(results: list) -> list:
             "yield_ratio": r.get("yield_ratio"),
             "milk_scale": r.get("milk_scale"),
             "milk_calibrated": r.get("milk_calibrated"),
+            "milk_uncalibrated_reason": r.get("milk_uncalibrated_reason"),
+            "milk_measured_kg": r.get("milk_measured_kg"),
+            "milk_pct_of_printed": r.get("milk_pct_of_printed"),
+            "measured_only": r.get("measured_only"),
             "reaches_axis_end": r.get("reaches_axis_end"),
             "fidelity":    r.get("fidelity", {}),
             "accuracy_pct": _accuracy_pct(r),
@@ -335,6 +343,16 @@ def _summarise(results: list) -> dict:
         if pm:
             summary["milk_pct_complete"] = round(100.0 * cm / pm, 2)
             summary["complete_charts"] = len(complete)
+
+    # How many charts the printed-weight calibration actually accepted. A
+    # refused chart is reported as measured, so these two counts are what the
+    # headline accuracy figure rests on.
+    calibrated = [r for r in extracted if r.get("milk_calibrated")]
+    refused = [r for r in extracted
+               if r.get("milk_uncalibrated_reason") == "exceeds_pen_width"]
+    if extracted:
+        summary["charts_calibrated"] = len(calibrated)
+        summary["charts_measured_only"] = len(refused)
 
     if ratios:
         summary["yield_ratio_median"] = round(sorted(ratios)[len(ratios) // 2], 4)

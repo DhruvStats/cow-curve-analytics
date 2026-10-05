@@ -798,23 +798,42 @@ def _calibrate_to_printed_milk(f_t, f_v, milk_kg):
     at all. Stretching the visible part to cover it would invent flow the chart
     does not show, so those curves are returned untouched.
 
-    Returns (values, scale, applied).
+    The bound is the ink itself. Half the pen width is the most any single
+    reading can honestly be out by; over a session of length T that accounts
+    for at most PEN_HALF_WIDTH_KG_MIN * T kilograms of area. A gap wider than
+    that cannot be explained by where inside the stroke the true line sits, so
+    it is refused rather than applied.
+
+    Returns (values, scale, applied, reason) where reason is None when the
+    scale was applied and a short tag otherwise, so callers can report why a
+    curve was left as measured.
     """
     v = np.asarray(f_v, dtype=float)
     t = np.asarray(f_t, dtype=float)
 
     if len(t) < 2 or not milk_kg or milk_kg <= 0:
-        return v, 1.0, False
+        return v, 1.0, False, "no_printed_weight"
 
     area = float(np.trapezoid(v, t))
     if area <= 0:
-        return v, 1.0, False
+        return v, 1.0, False, "no_area"
 
     scale = milk_kg / area
     if not CALIBRATE_TO_PRINTED_MILK:
-        return v, scale, False
+        return v, scale, False, "disabled"
 
-    return v * scale, scale, True
+    # The most area the pen's own width can account for over this session.
+    duration = float(t[-1] - t[0])
+    allowed = (settings.PEN_HALF_WIDTH_KG_MIN * duration
+               * settings.CALIBRATION_TOLERANCE)
+    gap = abs(milk_kg - area)
+
+    if gap > allowed:
+        # Beyond ink ambiguity. Leave the measurement alone and say so; the
+        # scale is still returned so the shortfall can be reported.
+        return v, scale, False, "exceeds_pen_width"
+
+    return v * scale, scale, True, None
 
 
 def _build_long_csv(f_t, f_v, p_t, p_v, step: float = CSV_TIME_STEP_MIN,
@@ -1068,10 +1087,24 @@ def _run_vector(fitz_doc, out_dir: str, img_dir: str) -> list[dict]:
             # Match the curve's area to the milk weight the AMS printed on the
             # same chart, when the needed correction is small enough to sit
             # inside the drawn line's own width.
-            flusso_v, milk_scale, milk_applied = _calibrate_to_printed_milk(
-                cd.flusso_t, cd.flusso_v, cd.milk_kg)
+            flusso_v, milk_scale, milk_applied, milk_reason = \
+                _calibrate_to_printed_milk(cd.flusso_t, cd.flusso_v, cd.milk_kg)
             result["milk_scale"] = round(float(milk_scale), 4)
             result["milk_calibrated"] = bool(milk_applied)
+            result["milk_uncalibrated_reason"] = milk_reason
+
+            # A refused scale means the drawing is short of the printed weight
+            # by more than the ink can explain. Record it as measured so the
+            # chart reports what it actually shows.
+            if milk_reason == "exceeds_pen_width":
+                result["measured_only"] = True
+                if cd.milk_kg:
+                    measured = float(np.trapezoid(
+                        np.asarray(flusso_v, dtype=float),
+                        np.asarray(cd.flusso_t, dtype=float)))
+                    result["milk_measured_kg"] = round(measured, 3)
+                    result["milk_pct_of_printed"] = round(
+                        100.0 * measured / cd.milk_kg, 1)
             result["metrics"] = {
                 "flusso": _series_metrics(cd.flusso_t, flusso_v),
                 "pressione": _series_metrics(cd.pressione_t, cd.pressione_v),

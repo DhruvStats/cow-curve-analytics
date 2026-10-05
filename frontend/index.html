@@ -1184,6 +1184,19 @@
         "curve vs printed",
         Math.abs(pct - 100) <= 2 ? "good" : "warn",
       ]);
+
+      // A chart the calibration refused is reported as measured, not forced.
+      // Saying why keeps a low figure from reading as an extraction fault when
+      // the shortfall is in the source PDF.
+      if (meta.milk_uncalibrated_reason === "exceeds_pen_width") {
+        items.push([
+          meta.reaches_axis_end ? "ran past axis" : "as measured",
+          meta.reaches_axis_end
+            ? "session continued beyond chart"
+            : "gap exceeds line width - not scaled",
+          "warn",
+        ]);
+      }
     }
 
     for (const [v, k, cls] of items) {
