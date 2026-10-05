@@ -61,7 +61,7 @@ def on_page(canvas, doc):
     canvas.rect(0, H - 1.1*cm, W, 1.1*cm, fill=1, stroke=0)
     canvas.setFont("Helvetica-Bold", 8)
     canvas.setFillColor(WHITE)
-    canvas.drawString(1.5*cm, H - 0.72*cm, "CHART DIGITIZER")
+    canvas.drawString(1.5*cm, H - 0.72*cm, "COW CURVE ANALYTICS")
     canvas.setFont("Helvetica", 8)
     canvas.drawRightString(W - 1.5*cm, H - 0.72*cm,
         "How-To Guide  ·  University of Naples Federico II")
@@ -129,14 +129,14 @@ story = []
 # ── Cover ────────────────────────────────────────────────────────────────────
 story += [
     Spacer(1, 7.5*cm),
-    Paragraph("Chart Digitizer", S["cover_title"]),
+    Paragraph("Cow Curve Analytics", S["cover_title"]),
     Paragraph("How to Run &amp; Test — Step-by-Step Guide", S["cover_sub"]),
     Spacer(1, 1.2*cm),
     Paragraph("University of Naples Federico II<br/>MSc Data Science", S["cover_meta"]),
     Spacer(1, 0.4*cm),
     Paragraph("Supervisor: Prof. Schiano Lo Moriello", S["cover_meta"]),
     Spacer(1, 0.4*cm),
-    Paragraph("August 2026", S["cover_meta"]),
+    Paragraph("October 2026", S["cover_meta"]),
     PageBreak(),
 ]
 
@@ -144,7 +144,7 @@ story += [
 story += [
     section_header(1, "What This Package Contains"),
     Paragraph(
-        "Chart Digitizer is an offline web application that extracts the two curves "
+        "Cow Curve Analytics is an offline web application that extracts the two curves "
         "(milk flow and vacuum pressure) from AMS milking-report PDFs and produces one "
         "CSV file per animal session. Everything runs locally — no internet connection "
         "is used at any point.", S["body"]),
@@ -153,10 +153,10 @@ story += [
         ["app.py  ·  start.sh  ·  frontend/", "The web application"],
         ["pipeline/pipeline.py", "The computer-vision extraction pipeline"],
         ["sample_input/sample_report.pdf", "A real 2-page AMS report to test with (16 sessions)"],
-        ["synthetic/pdf_output/", "3 synthetic test PDFs + exact ground truth (48 charts)"],
-        ["tests/evaluate_accuracy.py", "Accuracy benchmark against the ground truth"],
+        ["demo/reports/", "4 demo PDFs + exact ground truth (64 charts)"],
+        ["demo/score_demos.py", "Scores extraction against that ground truth"],
         ["pipeline/csv_synthetic_*/", "Pre-generated pipeline output for the benchmark"],
-        ["Chart_Digitizer_Explainer.pdf", "Technical explainer (architecture & accuracy)"],
+        ["Cow_Curve_Analytics_Explainer.pdf", "Technical explainer (method & accuracy)"],
         ["requirements.txt  ·  Dockerfile", "Dependencies / optional container setup"],
     ], [7*cm, 9*cm]),
     Spacer(1, 0.4*cm),
@@ -245,12 +245,12 @@ story += [
     section_header(6, "Verify the Accuracy Claims"),
     Paragraph(
         "The package includes three synthetic PDFs whose exact curve coordinates are known "
-        "(<font name='Courier'>synthetic/pdf_output/ground_truth.json</font>), plus the "
+        "(<font name='Courier'>demo/reports/all_truth.json</font>), plus the "
         "pipeline's output for them. To reproduce the accuracy numbers reported in the "
         "technical explainer:", S["body"]),
     code_block([
         "cd tests",
-        "python evaluate_accuracy.py",
+        "python demo/score_demos.py",
     ]),
     Paragraph("<b>Expected output</b> (48/48 charts matched):", S["body"]),
     styled_table([
@@ -264,11 +264,11 @@ story += [
         "To regenerate the pipeline output from scratch before benchmarking "
         "(instead of using the pre-generated CSVs), run:", S["body"]),
     code_block([
-        "python pipeline/pipeline.py --input synthetic/pdf_output/synthetic_1_baseline.pdf \\",
+        "python pipeline/pipeline.py --input demo/reports/demo_1_normal.pdf \\",
         "                            --out pipeline/csv_synthetic_baseline",
-        "python pipeline/pipeline.py --input synthetic/pdf_output/synthetic_2_multipage.pdf \\",
+        "python pipeline/pipeline.py --input demo/reports/demo_2_mixed.pdf \\",
         "                            --out pipeline/csv_synthetic_multipage",
-        "python pipeline/pipeline.py --input synthetic/pdf_output/synthetic_3_edge.pdf \\",
+        "python pipeline/pipeline.py --input demo/reports/demo_3_hard.pdf \\",
         "                            --out pipeline/csv_synthetic_edge",
     ]),
 ]
@@ -308,4 +308,4 @@ doc = SimpleDocTemplate(
     leftMargin=1.5*cm, rightMargin=1.5*cm,
 )
 doc.build(story, onFirstPage=on_first_page, onLaterPages=on_page)
-print(f"PDF saved → {OUT}")
+print(f"PDF saved -> {OUT}")
