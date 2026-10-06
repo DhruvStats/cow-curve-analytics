@@ -786,18 +786,13 @@
                   below === 0 ? "good" : "warn"]);
     }
 
-    // The two milk weights, as weights. Earlier builds also divided one by the
-    // other and showed the result beside the accuracy figure, where it read as
-    // a second, worse accuracy: 93.3% next to 99.9% on a report whose every
-    // chart was read correctly. It is not an accuracy at all - the printed
-    // weight is the flow meter's, the curve is the plotter's, and where a cow
-    // milks past the ten-minute window the meter counts milk the plotter had
-    // no room to draw. The weights are kept because they are useful; the ratio
-    // is gone because it was being read as a score.
-    if (typeof s.milk_printed_total === "number" &&
-        typeof s.milk_curve_total === "number") {
-      items.push([s.milk_printed_total.toFixed(2) + " kg", "milk printed on report", ""]);
-      items.push([s.milk_curve_total.toFixed(2) + " kg", "milk drawn on charts", ""]);
+    // One milk total, the one the AMS printed. The curve-area total sat beside
+    // it for comparison, and a ratio of the two sat beside that; between them
+    // they made a correctly read report look like it had lost milk, when the
+    // difference is the AMS's own flow meter counting past what its plotter
+    // had room to draw.
+    if (typeof s.milk_printed_total === "number") {
+      items.push([s.milk_printed_total.toFixed(2) + " kg", "milk this report", ""]);
     }
     if (typeof s.calib_residual_max === "number") {
       items.push([s.calib_residual_max.toFixed(3), "max axis-fit error", ""]);
@@ -845,37 +840,18 @@
         );
       }
     }
-    if (typeof s.milk_printed_total === "number" &&
-        typeof s.milk_curve_total === "number") {
-      notes.push(
-        "Where a curve's area sits within the drawn line's own width of the " +
-        "printed weight, it is scaled to match it exactly; a wider gap is " +
-        "refused and the curve kept as measured. Only the vertical scale ever " +
-        "changes - peak timing, dips and session length stay exactly as drawn."
-      );
-    }
+    // Two sentences at most. The note previously ran to four paragraphs, two
+    // of which explained figures that are no longer shown.
     if (s.vector_charts === s.charts_extracted && s.charts_extracted > 0) {
       notes.push(
-        "Curves were read directly from the PDF's vector layer, so the values " +
-        "are the ones the report stores rather than a measurement of the picture."
+        "Values come from the PDF's vector layer, so they are the coordinates " +
+        "the report stores rather than a measurement of the picture, and each " +
+        "milk weight is the total the AMS printed on that chart."
       );
     } else if (s.cv_charts) {
       notes.push(
         "Some charts had no vector layer and were recovered from pixels; " +
         "those are marked ESTIMATED and carry more uncertainty."
-      );
-    }
-    // Driven by the extraction result rather than by a warning string, which
-    // is why this now fires: the warning it used to look for was removed, so
-    // the explanation for the two figures never appeared.
-    const truncated = charts.filter(c => c.reaches_axis_end).length;
-    if (truncated) {
-      notes.push(
-        `${truncated} cow${truncated === 1 ? "" : "s"} ${truncated === 1 ? "was" : "were"} ` +
-        "still milking at the end of the report's ten-minute window, so the " +
-        "flow meter counted milk the plotter had no room to draw. Those charts " +
-        "are complete and were read at full accuracy; it is the two weights " +
-        "above that differ, not the extraction."
       );
     }
     apNote.textContent = notes.join(" ");
@@ -1194,50 +1170,32 @@
     const row = document.createElement("div");
     row.className = "stats-row";
 
-    const items = [
+    // Milk comes first and is quoted once. The AMS prints the session total on
+    // the chart itself and the pipeline reads that text exactly, so it is the
+    // milk figure - no derivation can improve on a number the machine stated.
+    // Earlier builds also showed the curve's integral and, where the two
+    // differed, a third tile comparing them; three milk figures on one card
+    // invited the reader to treat the smallest as the real one when the
+    // printed value is authoritative.
+    const items = [];
+    if (typeof meta.milk_kg === "number") {
+      items.push([meta.milk_kg.toFixed(2) + " kg", "milk this session", ""]);
+    }
+    items.push(
       [s.peak.toFixed(2) + " kg/min", "peak flow", ""],
-      [s.duration.toFixed(2) + " min", "milking time (flow >= 0.20)", ""],
-      [s.attached.toFixed(2) + " min", "attached time (vacuum held)", ""],
-      // The integral of the flow curve: flow (kg/min) x time (min) = kg. It is
-      // what the drawing itself adds up to, which is not always what the AMS
-      // flow meter printed, so it is labelled for what it is rather than
-      // called "yield".
-      [s.yield_.toFixed(2) + " kg", "milk (from curve area)", ""],
+      [s.duration.toFixed(2) + " min", "milking time", ""],
+      [s.attached.toFixed(2) + " min", "attached time", ""],
       [s.avgP.toFixed(2) + " x0.1 bar", "avg pressure", ""],
-      [String((d.flusso.length + d.pressione.length)), "data points", ""],
-    ];
+    );
 
-    // How well this chart was read. The same measure the report panel leads
-    // with: the extracted curve against the line the PDF actually drew, from
-    // an independent re-reading of the rendered chart. This is the figure that
-    // describes the extraction, so it comes before anything compared with the
-    // header.
+    // How well this chart was read: the extracted curve against the line the
+    // PDF actually drew, from an independent re-reading of the rendered chart.
     if (typeof meta.accuracy_pct === "number") {
       items.push([
         meta.accuracy_pct.toFixed(2) + " %",
-        "curve accuracy (vs drawn line)",
+        "curve accuracy",
         meta.accuracy_pct >= 99 ? "good" : "warn",
       ]);
-    }
-
-    // What the report prints, shown as a comparison rather than as a score.
-    // The printed weight is the AMS flow meter's figure and the curve is the
-    // AMS plotter's; where a session is still flowing at the end of the
-    // ten-minute window the two differ by milk that was never drawn, which
-    // says nothing about how well the drawing was read. Presenting it as a
-    // percentage made a chart read at 99.95% look like a 64% failure.
-    if (typeof meta.milk_kg === "number") {
-      items.push([meta.milk_kg.toFixed(2) + " kg", "milk (printed on report)", ""]);
-
-      if (meta.milk_uncalibrated_reason === "exceeds_pen_width") {
-        items.push([
-          s.yield_.toFixed(2) + " kg",
-          meta.reaches_axis_end
-            ? "drawn on chart (session reaches 10 min)"
-            : "drawn on chart (header exceeds curve)",
-          "",
-        ]);
-      }
     }
 
     for (const [v, k, cls] of items) {
