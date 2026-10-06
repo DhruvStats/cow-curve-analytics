@@ -154,10 +154,6 @@ CALIBRATION_TOLERANCE = 1.15
 # matches what the machine itself counts as milking.
 FLOW_THRESHOLD_KG_MIN = 0.20
 
-# Vacuum level that means the cluster is still attached. The pressure trace
-# sits near 4.5 during milking and falls away on detach, so a mid-scale cut
-# separates the two cleanly.
-ATTACHED_PRESSURE = 2.0
 
 # Minimum fraction of chart width a curve must span on the CV fallback path,
 # to reject coloured axis labels being mistaken for a curve.

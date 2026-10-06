@@ -110,7 +110,6 @@ def build():
         # The page reads its measurement rules from here rather than keeping
         # its own copies, so settings.py stays the single source of truth.
         "flow_threshold": settings.FLOW_THRESHOLD_KG_MIN,
-        "attached_pressure": settings.ATTACHED_PRESSURE,
         "curve_flow": settings.CURVE_FLOW,
         "curve_pressure": settings.CURVE_PRESSURE,
         # Present only on builds that bound the printed-weight calibration, so
