@@ -225,28 +225,6 @@
       font-size: 0.73rem; color: var(--muted);
       margin-top: 9px; line-height: 1.5;
     }
-    /* Milk reconciliation: printed on the report against what the curves add
-       up to, split by whether the calibration accepted the chart. */
-    .ap-verify {
-      width: 100%; border-collapse: collapse;
-      margin-top: 11px; font-size: 0.76rem;
-    }
-    .ap-verify th {
-      text-align: right; font-weight: 600; color: var(--muted);
-      font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em;
-      padding: 0 8px 5px; border-bottom: 1px solid var(--border);
-    }
-    .ap-verify th:first-child { text-align: left; }
-    .ap-verify td {
-      text-align: right; padding: 5px 8px; color: var(--text);
-      border-bottom: 1px solid var(--grid);
-    }
-    .ap-verify td:first-child { text-align: left; color: var(--muted); }
-    .ap-verify tr:last-child td {
-      border-bottom: none; font-weight: 700;
-      border-top: 1px solid var(--border);
-    }
-    .ap-verify .pct-ok { color: var(--primary); font-weight: 700; }
 
     /* Global controls */
     .toolbar {
@@ -564,7 +542,6 @@
     <div id="accuracy-panel">
       <div class="ap-title">Extraction accuracy</div>
       <div class="ap-grid" id="ap-grid"></div>
-      <table class="ap-verify" id="ap-verify"></table>
       <div class="ap-note" id="ap-note"></div>
     </div>
 
@@ -613,7 +590,6 @@
   const accPanel    = document.getElementById("accuracy-panel");
   const apGrid      = document.getElementById("ap-grid");
   const apNote      = document.getElementById("ap-note");
-  const apVerify    = document.getElementById("ap-verify");
 
   // The page is read from disk on every request, but app.py and pipeline.py
   // are loaded once when the server starts. Editing them under a running
@@ -880,45 +856,6 @@
     }
     apNote.textContent = notes.join(" ");
 
-    // Verification table. The accuracy column grades the extraction against
-    // the line the report drew; the two weight columns are shown as weights,
-    // not divided, so a chart the AMS under-drew does not appear as milk this
-    // code lost.
-    apVerify.innerHTML = "";
-    const mv = s.milk_verification;
-    if (mv && mv.all) {
-      const rows = [];
-      if (mv.full_session) rows.push(["Session ends inside window", mv.full_session]);
-      if (mv.ran_to_window_end) rows.push(["Session runs to window end", mv.ran_to_window_end]);
-      rows.push(["All charts", mv.all]);
-
-      const head = document.createElement("tr");
-      for (const h of ["Verification", "Charts", "Printed", "Drawn", "Accuracy", "Worst"]) {
-        const th = document.createElement("th");
-        th.textContent = h;
-        head.appendChild(th);
-      }
-      apVerify.appendChild(head);
-
-      for (const [label, g] of rows) {
-        const tr = document.createElement("tr");
-        const cells = [
-          label,
-          String(g.charts),
-          g.printed_kg.toFixed(2) + " kg",
-          g.drawn_kg.toFixed(2) + " kg",
-          g.accuracy_pct.toFixed(2) + " %",
-          g.worst_pct.toFixed(2) + " %",
-        ];
-        cells.forEach((text, i) => {
-          const td = document.createElement("td");
-          td.textContent = text;
-          if ((i === 4 || i === 5) && g.worst_pct >= 99) td.className = "pct-ok";
-          tr.appendChild(td);
-        });
-        apVerify.appendChild(tr);
-      }
-    }
   }
 
   // --- Filename -> readable label ---

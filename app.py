@@ -325,48 +325,6 @@ def _summarise(results: list) -> dict:
     if curve:
         summary["milk_curve_total"] = round(sum(curve), 2)
 
-    # Verification table: what the extraction can be held to.
-    #
-    # An earlier version compared the extracted weight with the weight printed
-    # in the header and split the rows by whether the calibration accepted the
-    # chart. That put 82.74% on screen for six charts, which invited the reading
-    # that a fifth of their milk had been lost in extraction. It had not: those
-    # curves are read correctly and the AMS simply kept milking past the window
-    # its plotter had room for, so recovering the difference would mean drawing
-    # four to eleven further minutes of curve that is not on the page.
-    #
-    # The comparison is therefore against the line the report drew, which is
-    # the only thing this code reads. Each chart's accuracy comes from
-    # re-rendering it and re-measuring that line by an independent path, so the
-    # figure grades the extraction rather than the report's internal agreement
-    # between its flow meter and its plotter. The printed and drawn weights stay
-    # in the table as weights, for anyone who wants to see the difference.
-    scored = [r for r in extracted
-              if isinstance(r.get("milk_kg"), (int, float))
-              and isinstance((r.get("metrics") or {}).get("flusso"), dict)
-              and isinstance(r["metrics"]["flusso"].get("integral"), (int, float))]
-
-    def _group(group):
-        accs = [a for a in (_accuracy_pct(r) for r in group) if a is not None]
-        if not accs:
-            return None
-        return {
-            "charts": len(group),
-            "printed_kg": round(sum(r["milk_kg"] for r in group), 2),
-            "drawn_kg": round(
-                sum(r["metrics"]["flusso"]["integral"] for r in group), 2),
-            "accuracy_pct": round(sum(accs) / len(accs), 2),
-            "worst_pct": round(min(accs), 2),
-        }
-
-    if scored:
-        full = [r for r in scored if not r.get("reaches_axis_end")]
-        ran_on = [r for r in scored if r.get("reaches_axis_end")]
-        summary["milk_verification"] = {
-            "all": _group(scored),
-            "full_session": _group(full) if full else None,
-            "ran_to_window_end": _group(ran_on) if ran_on else None,
-        }
 
     # The same comparison over charts the time axis did not cut off. Those four
     # are low because their curve stops mid-session in the source PDF, so
