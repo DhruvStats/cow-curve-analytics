@@ -322,8 +322,9 @@ def build(path):
         "disagree inside the AMS itself - the weight comes from the flow "
         "meter, the curve from the plotter - and that is a property of the "
         "report, not of this extraction. Reporting it as accuracy made four "
-        "correctly read charts look like failures. It is shown separately as "
-        "milk recovery, 93.3 % on the sample report.", ss["body"]))
+        "correctly read charts look like failures, so it is not reported as "
+        "one; the interface states each chart's printed weight and its own "
+        "accuracy, and leaves the two unmixed.", ss["body"]))
     s.append(Paragraph(
         "The bound and the tolerance above it are set in settings.py as "
         "PEN_HALF_WIDTH_KG_MIN and CALIBRATION_TOLERANCE, so the rule can be "
