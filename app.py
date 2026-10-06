@@ -325,6 +325,32 @@ def _summarise(results: list) -> dict:
     if curve:
         summary["milk_curve_total"] = round(sum(curve), 2)
 
+    # Printed against extracted, split by whether the calibration accepted the
+    # chart. Reported as one ratio the two groups average together and the
+    # result reads as milk lost in extraction; separated, the figures explain
+    # themselves - the accepted group reconciles exactly, and the remainder
+    # carries the whole of the difference for a reason that is in the report.
+    def _pair(group):
+        p = sum(r["milk_kg"] for r in group)
+        e = sum(r["metrics"]["flusso"]["integral"] for r in group)
+        return {"charts": len(group),
+                "printed_kg": round(p, 2),
+                "extracted_kg": round(e, 2),
+                "match_pct": round(100.0 * e / p, 2) if p else None}
+
+    scored = [r for r in extracted
+              if isinstance(r.get("milk_kg"), (int, float))
+              and isinstance((r.get("metrics") or {}).get("flusso"), dict)
+              and isinstance(r["metrics"]["flusso"].get("integral"), (int, float))]
+    if scored:
+        accepted = [r for r in scored if r.get("milk_calibrated")]
+        measured = [r for r in scored if not r.get("milk_calibrated")]
+        summary["milk_verification"] = {
+            "all": _pair(scored),
+            "calibrated": _pair(accepted) if accepted else None,
+            "measured_only": _pair(measured) if measured else None,
+        }
+
     # The same comparison over charts the time axis did not cut off. Those four
     # are low because their curve stops mid-session in the source PDF, so
     # including them understates how well the rest reproduce their weights.
