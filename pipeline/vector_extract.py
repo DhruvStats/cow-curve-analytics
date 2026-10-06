@@ -69,13 +69,17 @@ COLUMN_OVERLAP_PT = settings.COLUMN_OVERLAP_PT
 def _is_blue(c) -> bool:
     return (c[2] > settings.BLUE_MIN_B
             and c[0] < settings.BLUE_MAX_R
-            and c[1] < settings.BLUE_MAX_G)
+            and c[1] < settings.BLUE_MAX_G
+            # Blue must lead red, or a purple trace drawn alongside the flow
+            # curve is counted as part of it.
+            and c[2] - c[0] > settings.CHANNEL_DOMINANCE)
 
 
 def _is_green(c) -> bool:
     return (c[1] > settings.GREEN_MIN_G
             and c[0] < settings.GREEN_MAX_R
-            and c[2] < settings.GREEN_MAX_B)
+            and c[2] < settings.GREEN_MAX_B
+            and c[1] - c[0] > settings.CHANNEL_DOMINANCE)
 
 
 _ANIMAL_RE = re.compile(r"Animale[:\s]*(\d+)", re.IGNORECASE)

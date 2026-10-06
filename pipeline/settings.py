@@ -62,6 +62,15 @@ FIDELITY_DPI = 300
 BLUE_MIN_B, BLUE_MAX_R, BLUE_MAX_G = 0.55, 0.45, 0.45
 GREEN_MIN_G, GREEN_MAX_R, GREEN_MAX_B = 0.35, 0.45, 0.45
 
+# A channel must also dominate its rivals by this margin, not merely clear the
+# thresholds above. Some herds' reports carry a third trace in purple
+# (0.392, 0.027, 0.647), which passes the blue test on its own terms - blue
+# 0.647 is over the minimum and red 0.392 under the maximum - and was being
+# merged into the flow curve, inflating one chart's milk to 896% of its
+# printed weight. Pure blue leads red by 1.000 and that purple by only 0.255,
+# so a margin of half the range separates them with room on both sides.
+CHANNEL_DOMINANCE = 0.50
+
 
 # ---------------------------------------------------------------------------
 # Output
