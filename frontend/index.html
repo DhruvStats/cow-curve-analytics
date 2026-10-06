@@ -792,7 +792,16 @@
     // difference is the AMS's own flow meter counting past what its plotter
     // had room to draw.
     if (typeof s.milk_printed_total === "number") {
-      items.push([s.milk_printed_total.toFixed(2) + " kg", "milk this report", ""]);
+      items.push([s.milk_printed_total.toFixed(2) + " kg", "milk printed on report", ""]);
+    }
+    // What the extracted curves themselves add up to, beside what the report
+    // states. Shown as two weights and never divided: the printed figure is
+    // the AMS flow meter's, the extracted one is the area under the line its
+    // plotter drew, and where a cow milks past the ten-minute window the meter
+    // counts milk the plotter had no room to draw. A ratio of the two reads as
+    // milk lost in extraction, which is not what the difference means.
+    if (typeof s.milk_curve_total === "number") {
+      items.push([s.milk_curve_total.toFixed(2) + " kg", "milk extracted from curves", ""]);
     }
     if (typeof s.calib_residual_max === "number") {
       items.push([s.calib_residual_max.toFixed(3), "max axis-fit error", ""]);
@@ -1171,17 +1180,21 @@
     const row = document.createElement("div");
     row.className = "stats-row";
 
-    // Milk comes first and is quoted once. The AMS prints the session total on
-    // the chart itself and the pipeline reads that text exactly, so it is the
-    // milk figure - no derivation can improve on a number the machine stated.
-    // Earlier builds also showed the curve's integral and, where the two
-    // differed, a third tile comparing them; three milk figures on one card
-    // invited the reader to treat the smallest as the real one when the
-    // printed value is authoritative.
+    // Milk twice: the weight the AMS printed on the chart, and the weight the
+    // extracted curve adds up to. Both are stated plainly and neither is
+    // divided by the other - an earlier build showed that ratio and a chart
+    // read at 99.95% appeared as a 64% failure.
+    //
+    // On most charts the two agree exactly, because the calibration scaled the
+    // curve to the printed weight. Where they differ the cow was still milking
+    // when the chart reached its ten-minute edge, so the flow meter counted
+    // milk the plotter had no room to draw and the calibration refused to
+    // invent it.
     const items = [];
     if (typeof meta.milk_kg === "number") {
-      items.push([meta.milk_kg.toFixed(2) + " kg", "milk this session", ""]);
+      items.push([meta.milk_kg.toFixed(2) + " kg", "milk printed on chart", ""]);
     }
+    items.push([s.yield_.toFixed(2) + " kg", "milk extracted from curve", ""]);
     items.push(
       [s.peak.toFixed(2) + " kg/min", "peak flow", ""],
       [s.duration.toFixed(2) + " min", "milking time", ""],
