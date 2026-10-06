@@ -802,6 +802,11 @@
     // milk lost in extraction, which is not what the difference means.
     if (typeof s.milk_curve_total === "number") {
       items.push([s.milk_curve_total.toFixed(2) + " kg", "milk extracted from curves", ""]);
+      if (s.milk_printed_total > 0) {
+        const mp = (s.milk_curve_total / s.milk_printed_total) * 100;
+        items.push([mp.toFixed(1) + " %", "extracted vs printed milk",
+                    Math.abs(mp - 100) <= 2 ? "good" : ""]);
+      }
     }
     if (typeof s.calib_residual_max === "number") {
       items.push([s.calib_residual_max.toFixed(3), "max axis-fit error", ""]);
@@ -1017,9 +1022,9 @@
   }
 
   function parseCSV(text) {
-    const flusso = [], pressione = [];
+    const flusso = [], pressione = [], conduct = [], temp = [];
     const lines = text.split("\n");
-    if (!lines.length) return { flusso, pressione };
+    if (!lines.length) return { flusso, pressione, conduct, temp };
 
     // Columns are located by name, so the file layout can change without
     // breaking the preview. Blank cells mean "no reading here" and are
@@ -1028,7 +1033,7 @@
     const iCurve = head.indexOf("curve");
     const iTime  = head.indexOf("time_min");
     const iVal   = head.indexOf("value");
-    if (iCurve < 0 || iTime < 0 || iVal < 0) return { flusso, pressione };
+    if (iCurve < 0 || iTime < 0 || iVal < 0) return { flusso, pressione, conduct, temp };
 
     for (const line of lines.slice(1)) {
       if (!line) continue;
@@ -1040,8 +1045,12 @@
       const name = f[iCurve].trim();
       if (name === "Flusso_kg_min") flusso.push({ t, v });
       else if (name === "Pressione_assoluta_0.1bar") pressione.push({ t, v });
+      // Present only in reports that plot them; each sits on its own
+      // right-hand axis and is drawn against that scale, not against flow.
+      else if (name === "Conducibilita_mS_cm") conduct.push({ t, v });
+      else if (name === "Temperatura_C") temp.push({ t, v });
     }
-    return { flusso, pressione };
+    return { flusso, pressione, conduct, temp };
   }
 
   // --- Axis range: take it from the chart's own calibration when available,
@@ -1145,7 +1154,7 @@
     hint.textContent = meta.source === "vector" ? "(vector-exact)" : "(image-estimated)";
     hR.appendChild(hint);
     paneR.appendChild(hR);
-    paneR.appendChild(buildLegend());
+    paneR.appendChild(buildLegend(data));
     paneR.appendChild(buildChart(data, ax));
 
     cmp.appendChild(paneL);
@@ -1166,12 +1175,19 @@
     return frag;
   }
 
-  function buildLegend() {
+  function buildLegend(d) {
     const el = document.createElement("div");
     el.className = "legend";
-    el.innerHTML =
+    let h =
       `<span class="chip"><span class="swatch" style="background:var(--flusso)"></span>Flusso (kg/min)</span>` +
       `<span class="chip"><span class="swatch" style="background:var(--pressione)"></span>Pressione (x0.1 bar)</span>`;
+    // Only named when the report actually plots them, so a two-trace report's
+    // legend is unchanged.
+    if (d && d.conduct && d.conduct.length)
+      h += `<span class="chip"><span class="swatch" style="background:#6407a5"></span>Conducibilita (mS/cm)</span>`;
+    if (d && d.temp && d.temp.length)
+      h += `<span class="chip"><span class="swatch" style="background:#d12b2b"></span>Temperatura (C)</span>`;
+    el.innerHTML = h;
     return el;
   }
 
@@ -1195,6 +1211,19 @@
       items.push([meta.milk_kg.toFixed(2) + " kg", "milk printed on chart", ""]);
     }
     items.push([s.yield_.toFixed(2) + " kg", "milk extracted from curve", ""]);
+    // Extracted as a share of what the chart states, so the two weights can be
+    // checked against each other at a glance. Marked good within 2%, which is
+    // the band the calibration works inside; below that the cow was still
+    // milking when the chart ran out of width, and the label says so.
+    if (typeof meta.milk_kg === "number" && meta.milk_kg > 0) {
+      const mp = (s.yield_ / meta.milk_kg) * 100;
+      items.push([
+        mp.toFixed(1) + " %",
+        meta.reaches_axis_end ? "of printed (session hits chart edge)"
+                              : "of printed milk",
+        Math.abs(mp - 100) <= 2 ? "good" : "",
+      ]);
+    }
     items.push(
       [s.peak.toFixed(2) + " kg/min", "peak flow", ""],
       [s.duration.toFixed(2) + " min", "milking time", ""],
@@ -1293,19 +1322,41 @@
       stroke: "var(--muted)", "stroke-width": 1 }));
     svg.appendChild(mkText(NS, (M.l + CW - M.r) / 2, CH - 4, "time (min)", "middle"));
 
-    // curves
+    // Curves. Flow and pressure share the left axis they are printed against;
+    // conductivity and temperature each have their own right-hand axis in the
+    // source and are mapped onto their own range here, so a 30 C reading does
+    // not stretch a 0-7 kg/min axis and flatten the flow curve into the floor.
+    function rangeOf(pts, pad) {
+      const vs = pts.map(p => p.v);
+      let lo = Math.min(...vs), hi = Math.max(...vs);
+      if (hi - lo < 1e-6) { lo -= 1; hi += 1; }
+      const m = (hi - lo) * pad;
+      return { lo: lo - m, hi: hi + m };
+    }
     const series = [
       { pts: data.flusso,    color: "var(--flusso)",    label: "Flusso" },
       { pts: data.pressione, color: "var(--pressione)", label: "Pressione" },
     ];
+    for (const ex of [
+      { pts: data.conduct || [], color: "#6407a5", label: "Conducibilita" },
+      { pts: data.temp    || [], color: "#d12b2b", label: "Temperatura" },
+    ]) {
+      if (!ex.pts.length) continue;
+      const r = rangeOf(ex.pts, 0.12);
+      ex.sy = v => M.t + (1 - (v - r.lo) / (r.hi - r.lo)) * (CH - M.t - M.b);
+      series.push(ex);
+    }
     for (const s of series) {
       if (!s.pts.length) continue;
+      const ys = s.sy || sy;
       const d = s.pts.map((p, i) =>
-        `${i ? "L" : "M"}${sx(p.t).toFixed(1)},${sy(p.v).toFixed(1)}`).join("");
+        `${i ? "L" : "M"}${sx(p.t).toFixed(1)},${ys(p.v).toFixed(1)}`).join("");
       svg.appendChild(mk(NS, "path", { d, fill: "none",
-        stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round" }));
+        stroke: s.color, "stroke-width": s.sy ? 1.4 : 2,
+        "stroke-dasharray": s.sy ? "4 3" : "none",
+        "stroke-linejoin": "round" }));
       const last = s.pts[s.pts.length - 1];
-      const lbl = mkText(NS, sx(last.t) + 6, sy(last.v) + 3.5, s.label, "start");
+      const lbl = mkText(NS, sx(last.t) + 6, ys(last.v) + 3.5, s.label, "start");
       lbl.setAttribute("font-weight", "600");
       svg.appendChild(lbl);
     }

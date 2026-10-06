@@ -71,6 +71,21 @@ GREEN_MIN_G, GREEN_MAX_R, GREEN_MAX_B = 0.35, 0.45, 0.45
 # so a margin of half the range separates them with room on both sides.
 CHANNEL_DOMINANCE = 0.50
 
+# Some herds' reports plot two further traces against their own right-hand
+# axes, and print each axis's numerals in the colour of its curve. These are
+# the colours the legend uses, read from the report rather than guessed:
+#   [mS/cm]  conductivity, purple, right axis 2..9
+#   [degC]   temperature,  red,    far-right axis 10..45
+# A report without them simply yields no strokes of that colour and the series
+# comes back empty, so the same code reads both report styles.
+COLOUR_CONDUCTIVITY = (0.392, 0.027, 0.647)
+COLOUR_TEMPERATURE = (1.0, 0.0, 0.0)
+TRACE_COLOUR_TOL = 0.12
+
+# Extra traces are read only when this is on. They are genuine measurements,
+# but each sits on its own scale, so they never take part in the milk figures.
+EXTRACT_EXTRA_TRACES = True
+
 
 # ---------------------------------------------------------------------------
 # Output
@@ -175,3 +190,5 @@ AXIS_Y_RIGHT = "pressione assoluta [0.1bar]"
 # Curve names written into the CSV's `curve` column.
 CURVE_FLOW = "Flusso_kg_min"
 CURVE_PRESSURE = "Pressione_assoluta_0.1bar"
+CURVE_CONDUCTIVITY = "Conducibilita_mS_cm"
+CURVE_TEMPERATURE = "Temperatura_C"

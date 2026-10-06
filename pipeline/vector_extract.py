@@ -82,6 +82,21 @@ def _is_green(c) -> bool:
             and c[1] - c[0] > settings.CHANNEL_DOMINANCE)
 
 
+def _near(c, target, tol=settings.TRACE_COLOUR_TOL) -> bool:
+    """Match a stroke against a trace colour taken from the chart's legend."""
+    return (abs(c[0] - target[0]) <= tol
+            and abs(c[1] - target[1]) <= tol
+            and abs(c[2] - target[2]) <= tol)
+
+
+def _is_conduct(c) -> bool:
+    return _near(c, settings.COLOUR_CONDUCTIVITY)
+
+
+def _is_temp(c) -> bool:
+    return _near(c, settings.COLOUR_TEMPERATURE)
+
+
 _ANIMAL_RE = re.compile(r"Animale[:\s]*(\d+)", re.IGNORECASE)
 _ANIMAL_RE2 = re.compile(r"\bID[:\s]*(\d+)", re.IGNORECASE)
 _DATA_DATE_RE = re.compile(
@@ -126,6 +141,13 @@ class ChartData:
     flusso_v: list[float] = field(default_factory=list)
     pressione_t: list[float] = field(default_factory=list)
     pressione_v: list[float] = field(default_factory=list)
+
+    # Extra traces, present only in reports that plot them. Each carries its
+    # own right-hand axis, so these are never mixed into the milk figures.
+    conduct_t: list[float] = field(default_factory=list)
+    conduct_v: list[float] = field(default_factory=list)
+    temp_t: list[float] = field(default_factory=list)
+    temp_v: list[float] = field(default_factory=list)
 
     source: str = "vector"
     warnings: list[str] = field(default_factory=list)
@@ -209,6 +231,55 @@ def _y_calibration(blocks, x0, x1, y0, y1):
     slope, intercept = np.polyfit(ys, vs, 1)
     resid = float(np.abs(np.polyval([slope, intercept], ys) - vs).max())
     return float(slope), float(intercept), len(seen), resid
+
+
+def _y_calibration_coloured(page, rgb, x0, x1, y0, y1, tol=0.08):
+    """
+    Fit PDF-y -> data-value from tick labels printed in a given colour.
+
+    Some herds' reports carry extra traces on their own right-hand axes -
+    conductivity in mS/cm, temperature in degrees C - and print each axis's
+    numerals in the same colour as its curve. Selecting ticks by colour rather
+    than by position is what makes those axes readable: two of them share the
+    right edge, so a leftmost-column rule cannot separate them, while the
+    colours are exact and stated in the legend.
+
+    Returns (slope, intercept, n_ticks, max_residual) or None.
+    """
+    want = tuple(rgb)
+    cands: dict[float, float] = {}
+    try:
+        info = page.get_text("dict")
+    except Exception:
+        return None
+
+    for blk in info.get("blocks", []):
+        for line in blk.get("lines", []):
+            for span in line.get("spans", []):
+                t = span.get("text", "").strip()
+                if not _INT_RE.match(t):
+                    continue
+                c = span.get("color", 0)
+                sr = ((c >> 16) & 255) / 255.0
+                sg = ((c >> 8) & 255) / 255.0
+                sb = (c & 255) / 255.0
+                if (abs(sr - want[0]) > tol or abs(sg - want[1]) > tol
+                        or abs(sb - want[2]) > tol):
+                    continue
+                bx = span["bbox"]
+                cx, cy = (bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2
+                if not (x0 <= cx <= x1 and y0 <= cy <= y1):
+                    continue
+                cands.setdefault(float(t), cy)
+
+    if len(cands) < 3:
+        return None
+
+    ys = np.array(list(cands.values()), dtype=float)
+    vs = np.array(list(cands.keys()), dtype=float)
+    slope, intercept = np.polyfit(ys, vs, 1)
+    resid = float(np.abs(np.polyval([slope, intercept], ys) - vs).max())
+    return float(slope), float(intercept), len(cands), resid
 
 
 def _tick_value_range(blocks, x0, x1, y0, y1):
@@ -673,6 +744,34 @@ def extract_page(page, page_index: int) -> list[ChartData]:
             cd.warnings.append("Flusso curve not present in vector layer")
         if not cd.pressione_t:
             cd.warnings.append("Pressione curve not present in vector layer")
+
+        # Conductivity and temperature, where the report plots them. Each has
+        # its own right-hand axis, so each gets its own fit from the tick
+        # labels printed in its own colour - reusing the flow axis here would
+        # report conductivity in kg/min, which is how a purple trace once
+        # turned into 896% of a chart's milk.
+        if settings.EXTRACT_EXTRA_TRACES:
+            for colour, test, t_attr, v_attr in (
+                    (settings.COLOUR_CONDUCTIVITY, _is_conduct,
+                     "conduct_t", "conduct_v"),
+                    (settings.COLOUR_TEMPERATURE, _is_temp,
+                     "temp_t", "temp_v")):
+                pts = _collect_points(drawings, gx0, gx1, y0, y1, test)
+                if not pts:
+                    continue
+                cal = _y_calibration_coloured(page, colour, x0, x1, y0, y1)
+                if not cal:
+                    continue
+                s2, i2, n2, r2 = cal
+                fy2 = lambda y, _s=s2, _i=i2: _s * y + _i
+                ts, vs = _points_to_series(
+                    pts, fx, fy2, t_lo=t_min, t_hi=t_max,
+                    v_lo=None, v_hi=None)
+                setattr(cd, t_attr, ts)
+                setattr(cd, v_attr, vs)
+                cd.calib[t_attr.replace("_t", "_axis")] = {
+                    "slope": s2, "intercept": i2,
+                    "ticks": n2, "residual": round(r2, 5)}
 
         # A curve that reaches the right edge of the time axis while flow is
         # still high is recorded on the chart data, not raised as a warning:

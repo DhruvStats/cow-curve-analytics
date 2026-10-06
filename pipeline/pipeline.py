@@ -837,7 +837,7 @@ def _calibrate_to_printed_milk(f_t, f_v, milk_kg):
 
 
 def _build_long_csv(f_t, f_v, p_t, p_v, step: float = CSV_TIME_STEP_MIN,
-                    milk_kg: float | None = None):
+                    milk_kg: float | None = None, extra=None):
     """
     Build the output table in long form: curve, time_min, value.
 
@@ -858,10 +858,12 @@ def _build_long_csv(f_t, f_v, p_t, p_v, step: float = CSV_TIME_STEP_MIN,
     """
     frames = []
 
-    for name, t_raw, v_raw in (
-        (CURVE_FLOW, f_t, f_v),
-        (CURVE_PRESSURE, p_t, p_v),
-    ):
+    # Extra series are appended rather than built in, so a report that does not
+    # plot them produces exactly the file it did before.
+    series = [(CURVE_FLOW, f_t, f_v), (CURVE_PRESSURE, p_t, p_v)]
+    series.extend(extra or [])
+
+    for name, t_raw, v_raw in series:
         t = np.asarray(t_raw, float)
         v = np.asarray(v_raw, float)
         if len(t) < 2:
@@ -1120,9 +1122,18 @@ def _run_vector(fitz_doc, out_dir: str, img_dir: str) -> list[dict]:
                     result["image_file"] = img_name
 
             # One row per time, both curves side by side, starting at t = 0.
+            extra_series = []
+            if getattr(cd, "conduct_t", None):
+                extra_series.append(
+                    (settings.CURVE_CONDUCTIVITY, cd.conduct_t, cd.conduct_v))
+            if getattr(cd, "temp_t", None):
+                extra_series.append(
+                    (settings.CURVE_TEMPERATURE, cd.temp_t, cd.temp_v))
+
             df = _build_long_csv(cd.flusso_t, flusso_v,
                                  cd.pressione_t, cd.pressione_v,
-                                 milk_kg=cd.milk_kg if milk_applied else None)
+                                 milk_kg=cd.milk_kg if milk_applied else None,
+                                 extra=extra_series)
 
             if df is not None:
                 csv_name = make_csv_name(meta_for_name, cd.chart)
