@@ -137,6 +137,11 @@ CALIBRATE_TO_PRINTED_MILK = True
 # edge of the time axis. Scaling the visible part to cover it would invent flow
 # that is not in the source, so those curves are left exactly as measured and
 # reported as truncated instead.
+# The stroke width the AMS draws its curves with, in PDF points. What half of
+# it is worth in kg/min is not fixed - it depends on the chart's own vertical
+# scale, so it is computed per chart from that chart's calibration rather than
+# stored here. The figure below is only a fallback for a chart whose Y fit is
+# missing, and corresponds to a 0..9 axis of the usual height.
 PEN_WIDTH_PT = 1.44
 PEN_HALF_WIDTH_KG_MIN = 0.0389
 

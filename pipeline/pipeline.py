@@ -783,7 +783,7 @@ def ocr_full_page(page: np.ndarray) -> list[dict]:
     return results
 
 
-def _calibrate_to_printed_milk(f_t, f_v, milk_kg):
+def _calibrate_to_printed_milk(f_t, f_v, milk_kg, y_slope=None):
     """
     Scale the flow curve so its area equals the milk weight printed on the
     chart, when the required correction is small enough to be real.
@@ -823,9 +823,20 @@ def _calibrate_to_printed_milk(f_t, f_v, milk_kg):
         return v, scale, False, "disabled"
 
     # The most area the pen's own width can account for over this session.
+    #
+    # Half a pen width is a distance on the page, so what it is worth in kg/min
+    # depends on the chart's own vertical scale. Taking it from this chart's
+    # calibration keeps the bound correct whatever axis a report uses: on a
+    # 0-9 axis the same 1.44pt stroke spans 0.0779 kg/min, on a 0-7 axis
+    # 0.0468. A fixed figure would be too tight on one and too loose on the
+    # other, and wrong outright on a scale neither report uses.
+    if y_slope:
+        half_pen = abs(float(y_slope)) * settings.PEN_WIDTH_PT / 2.0
+    else:
+        half_pen = settings.PEN_HALF_WIDTH_KG_MIN
+
     duration = float(t[-1] - t[0])
-    allowed = (settings.PEN_HALF_WIDTH_KG_MIN * duration
-               * settings.CALIBRATION_TOLERANCE)
+    allowed = half_pen * duration * settings.CALIBRATION_TOLERANCE
     gap = abs(milk_kg - area)
 
     if gap > allowed:
@@ -1092,7 +1103,9 @@ def _run_vector(fitz_doc, out_dir: str, img_dir: str) -> list[dict]:
             # same chart, when the needed correction is small enough to sit
             # inside the drawn line's own width.
             flusso_v, milk_scale, milk_applied, milk_reason = \
-                _calibrate_to_printed_milk(cd.flusso_t, cd.flusso_v, cd.milk_kg)
+                _calibrate_to_printed_milk(
+                    cd.flusso_t, cd.flusso_v, cd.milk_kg,
+                    y_slope=(cd.calib or {}).get("y_slope"))
             result["milk_scale"] = round(float(milk_scale), 4)
             result["milk_calibrated"] = bool(milk_applied)
             result["milk_uncalibrated_reason"] = milk_reason
