@@ -1178,15 +1178,13 @@
   function buildLegend(d) {
     const el = document.createElement("div");
     el.className = "legend";
+    // Flow only. The AMS plots foam, conductivity and temperature beside it,
+    // and those are read past rather than drawn - the blue curve is the
+    // measurement this system exists to recover.
     let h =
-      `<span class="chip"><span class="swatch" style="background:var(--flusso)"></span>Flusso (kg/min)</span>` +
-      `<span class="chip"><span class="swatch" style="background:var(--pressione)"></span>Pressione (x0.1 bar)</span>`;
-    // Only named when the report actually plots them, so a two-trace report's
-    // legend is unchanged.
-    if (d && d.conduct && d.conduct.length)
-      h += `<span class="chip"><span class="swatch" style="background:#6407a5"></span>Conducibilita (mS/cm)</span>`;
-    if (d && d.temp && d.temp.length)
-      h += `<span class="chip"><span class="swatch" style="background:#d12b2b"></span>Temperatura (C)</span>`;
+      `<span class="chip"><span class="swatch" style="background:var(--flusso)"></span>Flusso (kg/min)</span>`;
+    if (d && d.pressione && d.pressione.length)
+      h += `<span class="chip"><span class="swatch" style="background:var(--pressione)"></span>Pressione (x0.1 bar)</span>`;
     el.innerHTML = h;
     return el;
   }
@@ -1333,19 +1331,9 @@
       const m = (hi - lo) * pad;
       return { lo: lo - m, hi: hi + m };
     }
-    const series = [
-      { pts: data.flusso,    color: "var(--flusso)",    label: "Flusso" },
-      { pts: data.pressione, color: "var(--pressione)", label: "Pressione" },
-    ];
-    for (const ex of [
-      { pts: data.conduct || [], color: "#6407a5", label: "Conducibilita" },
-      { pts: data.temp    || [], color: "#d12b2b", label: "Temperatura" },
-    ]) {
-      if (!ex.pts.length) continue;
-      const r = rangeOf(ex.pts, 0.12);
-      ex.sy = v => M.t + (1 - (v - r.lo) / (r.hi - r.lo)) * (CH - M.t - M.b);
-      series.push(ex);
-    }
+    const series = [{ pts: data.flusso, color: "var(--flusso)", label: "Flusso" }];
+    if (data.pressione && data.pressione.length)
+      series.push({ pts: data.pressione, color: "var(--pressione)", label: "Pressione" });
     for (const s of series) {
       if (!s.pts.length) continue;
       const ys = s.sy || sy;

@@ -858,10 +858,12 @@ def _build_long_csv(f_t, f_v, p_t, p_v, step: float = CSV_TIME_STEP_MIN,
     """
     frames = []
 
-    # Extra series are appended rather than built in, so a report that does not
-    # plot them produces exactly the file it did before.
-    series = [(CURVE_FLOW, f_t, f_v), (CURVE_PRESSURE, p_t, p_v)]
-    series.extend(extra or [])
+    # Flow alone when FLOW_ONLY is set: the file carries the curve the system
+    # is for, and nothing the AMS happens to plot beside it.
+    series = [(CURVE_FLOW, f_t, f_v)]
+    if not settings.FLOW_ONLY:
+        series.append((CURVE_PRESSURE, p_t, p_v))
+        series.extend(extra or [])
 
     for name, t_raw, v_raw in series:
         t = np.asarray(t_raw, float)

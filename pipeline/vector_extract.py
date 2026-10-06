@@ -733,16 +733,18 @@ def extract_page(page, page_index: int) -> list[ChartData]:
         gx0 = lab_x0 - 1.0
         gx1 = lab_x1 + 1.0
         blue = _collect_points(drawings, gx0, gx1, y0, y1, _is_blue)
-        green = _collect_points(drawings, gx0, gx1, y0, y1, _is_green)
-
         cd.flusso_t, cd.flusso_v = _points_to_series(
             blue, fx, fy, t_lo=t_min, t_hi=t_max, v_lo=v_lo_t, v_hi=v_hi_t)
-        cd.pressione_t, cd.pressione_v = _points_to_series(
-            green, fx, fy, t_lo=t_min, t_hi=t_max, v_lo=v_lo_t, v_hi=v_hi_t)
+
+        if not settings.FLOW_ONLY:
+            green = _collect_points(drawings, gx0, gx1, y0, y1, _is_green)
+            cd.pressione_t, cd.pressione_v = _points_to_series(
+                green, fx, fy, t_lo=t_min, t_hi=t_max,
+                v_lo=v_lo_t, v_hi=v_hi_t)
 
         if not cd.flusso_t:
             cd.warnings.append("Flusso curve not present in vector layer")
-        if not cd.pressione_t:
+        if not settings.FLOW_ONLY and not cd.pressione_t:
             cd.warnings.append("Pressione curve not present in vector layer")
 
         # Conductivity and temperature, where the report plots them. Each has
@@ -750,7 +752,7 @@ def extract_page(page, page_index: int) -> list[ChartData]:
         # labels printed in its own colour - reusing the flow axis here would
         # report conductivity in kg/min, which is how a purple trace once
         # turned into 896% of a chart's milk.
-        if settings.EXTRACT_EXTRA_TRACES:
+        if settings.EXTRACT_EXTRA_TRACES and not settings.FLOW_ONLY:
             for colour, test, t_attr, v_attr in (
                     (settings.COLOUR_CONDUCTIVITY, _is_conduct,
                      "conduct_t", "conduct_v"),

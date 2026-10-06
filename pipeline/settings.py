@@ -84,7 +84,17 @@ TRACE_COLOUR_TOL = 0.12
 
 # Extra traces are read only when this is on. They are genuine measurements,
 # but each sits on its own scale, so they never take part in the milk figures.
-EXTRACT_EXTRA_TRACES = True
+EXTRACT_EXTRA_TRACES = False
+
+# Flow only. The blue curve is the measurement this system exists to recover;
+# everything else the AMS plots alongside it - foam, conductivity, temperature,
+# and whatever a later firmware adds - is read past rather than extracted.
+#
+# This is a single switch rather than a list of colours to exclude, so a trace
+# nobody has seen yet is ignored by default instead of needing a rule written
+# for it. The code that reads those traces is kept and tested; turning this off
+# brings all of them back.
+FLOW_ONLY = True
 
 
 # ---------------------------------------------------------------------------
