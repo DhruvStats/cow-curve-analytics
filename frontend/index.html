@@ -610,7 +610,6 @@
 
     if (info) {
       if (typeof info.flow_threshold === "number") FLOW_THRESHOLD = info.flow_threshold;
-      if (typeof info.attached_pressure === "number") ATTACHED_PRESSURE = info.attached_pressure;
     }
 
     const missing = !info || REQUIRED_SERVER_FIELDS.some(f => !info[f]);
@@ -1080,11 +1079,6 @@
   let FLOW_THRESHOLD = 0.20;
 
 
-  // Vacuum level that means the cluster is still attached. The pressure trace
-  // sits near 4.5 during milking and falls away when the unit detaches, so a
-  // mid-scale cut separates the two cleanly.
-  let ATTACHED_PRESSURE = 2.0;
-
   function sessionStats(d) {
     const f = d.flusso;
     let peak = 0, yield_ = 0, lastAbove = null;
@@ -1094,21 +1088,14 @@
       if (f[i].v >= FLOW_THRESHOLD) lastAbove = f[i].t;
     }
 
-    // Two different things, reported separately because they genuinely differ:
-    //   milking time - while flow is at or above the machine's own 0.20 line
-    //   attached time - while vacuum is held, which can run much longer
-    // Animal 1138 milks for 4.7 min but stays attached for 9.6; reporting
-    // either one alone as "session length" is misleading.
+    // Milking time runs to the last reading at or above the machine's own
+    // end-of-milking line, printed on every chart as "0,20". Measuring to the
+    // last non-zero sample instead would count the dribble after the cluster
+    // has stopped taking milk - up to 1.86 min of it on this report - which is
+    // time the AMS does not call milking.
     const milking = lastAbove === null ? 0 : lastAbove;
 
-    const p = d.pressione;
-    let attached = 0;
-    for (const pt of p) {
-      if (pt.v >= ATTACHED_PRESSURE) attached = pt.t;
-    }
-    const avgP = p.length ? p.reduce((s, x) => s + x.v, 0) / p.length : 0;
-
-    return { peak, yield_, duration: milking, attached, avgP };
+    return { peak, yield_, duration: milking };
   }
 
   // --- The comparison block: original crop | extracted curve ---
@@ -1227,8 +1214,8 @@
     items.push(
       [s.peak.toFixed(2) + " kg/min", "peak flow", ""],
       [s.duration.toFixed(2) + " min", "milking time", ""],
-      [s.attached.toFixed(2) + " min", "attached time", ""],
-      [s.avgP.toFixed(2) + " x0.1 bar", "avg pressure", ""],
+
+
     );
 
     // How well this chart was read: the extracted curve against the line the
