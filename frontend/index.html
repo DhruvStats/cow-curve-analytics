@@ -775,35 +775,29 @@
     if (s.cv_charts) {
       items.push([`${s.cv_charts}`, "estimated (image CV)", ""]);
     }
-    // Milk totals across the whole report, printed against curve area, so the
-    // overall agreement is visible without a per-chart ratio.
+    // How many charts cleared the accuracy requirement. This is the claim the
+    // panel is making, so it is stated as a count rather than left for the
+    // reader to infer from an average.
+    if (typeof s.charts_extracted === "number" &&
+        typeof s.accuracy_threshold === "number") {
+      const below = (s.charts_below_threshold || []).length;
+      items.push([`${s.charts_extracted - below} / ${s.charts_extracted}`,
+                  `charts above ${s.accuracy_threshold}%`,
+                  below === 0 ? "good" : "warn"]);
+    }
+
+    // The two milk weights, as weights. Earlier builds also divided one by the
+    // other and showed the result beside the accuracy figure, where it read as
+    // a second, worse accuracy: 93.3% next to 99.9% on a report whose every
+    // chart was read correctly. It is not an accuracy at all - the printed
+    // weight is the flow meter's, the curve is the plotter's, and where a cow
+    // milks past the ten-minute window the meter counts milk the plotter had
+    // no room to draw. The weights are kept because they are useful; the ratio
+    // is gone because it was being read as a score.
     if (typeof s.milk_printed_total === "number" &&
         typeof s.milk_curve_total === "number") {
-      items.push([s.milk_printed_total.toFixed(2) + " kg", "milk printed (all charts)", ""]);
-      items.push([s.milk_curve_total.toFixed(2) + " kg", "milk from curves (all charts)", ""]);
-    }
-    // Two figures, because they answer two different questions and a single
-    // number hides the distinction.
-    //
-    // Extraction fidelity asks how faithfully the curve was read, over the
-    // charts that draw their whole session. Milk recovery asks how much of the
-    // printed milk the drawing contains at all, over every chart. A session
-    // that runs past the right edge of the time axis lowers the second without
-    // saying anything about the first, because the shortfall is milk the report
-    // never drew rather than milk that was mis-measured.
-    if (typeof s.milk_pct_complete === "number") {
-      items.push([s.milk_pct_complete.toFixed(1) + " %",
-                  "extraction fidelity (full sessions)",
-                  Math.abs(s.milk_pct_complete - 100) <= 5 ? "good" : "warn"]);
-    }
-    if (typeof s.milk_printed_total === "number" &&
-        typeof s.milk_curve_total === "number") {
-      const pct = (s.milk_curve_total / s.milk_printed_total) * 100;
-      const cut = (s.chart_count || 0) - (s.complete_charts || 0);
-      items.push([pct.toFixed(1) + " %",
-                  cut > 0 ? `milk recovery (${cut} session${cut > 1 ? "s" : ""} cut off by axis)`
-                          : "milk recovery (all charts)",
-                  Math.abs(pct - 100) <= 5 ? "good" : "muted"]);
+      items.push([s.milk_printed_total.toFixed(2) + " kg", "milk printed on report", ""]);
+      items.push([s.milk_curve_total.toFixed(2) + " kg", "milk drawn on charts", ""]);
     }
     if (typeof s.calib_residual_max === "number") {
       items.push([s.calib_residual_max.toFixed(3), "max axis-fit error", ""]);
@@ -829,9 +823,17 @@
     const below = s.charts_below_threshold || [];
     if (typeof s.accuracy_threshold === "number") {
       if (below.length === 0 && s.charts_extracted > 0) {
+        // Quote what was measured, not the threshold that was cleared. Saying
+        // "to within 2%" of a set of curves read to within 0.1% understates the
+        // result by a factor of twenty.
+        const worst = charts
+          .map(c => c.accuracy_pct)
+          .filter(a => typeof a === "number")
+          .reduce((m, a) => Math.min(m, a), 100);
         notes.push(
           `Every curve was read from the PDF's vector layer and matches the ` +
-          `printed line to within ${(100 - s.accuracy_threshold).toFixed(0)}%.`
+          `line the report drew to within ${(100 - worst).toFixed(2)}% on the ` +
+          `worst chart.`
         );
       } else if (below.length) {
         const names = below
@@ -846,10 +848,10 @@
     if (typeof s.milk_printed_total === "number" &&
         typeof s.milk_curve_total === "number") {
       notes.push(
-        "Each flow curve is scaled so its total equals the milk weight printed " +
-        "on that chart, which is the AMS flow meter's own measurement. Only the " +
-        "vertical scale changes - peak timing, dips and session length stay " +
-        "exactly as drawn."
+        "Where a curve's area sits within the drawn line's own width of the " +
+        "printed weight, it is scaled to match it exactly; a wider gap is " +
+        "refused and the curve kept as measured. Only the vertical scale ever " +
+        "changes - peak timing, dips and session length stay exactly as drawn."
       );
     }
     if (s.vector_charts === s.charts_extracted && s.charts_extracted > 0) {
@@ -869,11 +871,11 @@
     const truncated = charts.filter(c => c.reaches_axis_end).length;
     if (truncated) {
       notes.push(
-        `${truncated} session${truncated === 1 ? "" : "s"} ran to the end of the ` +
-        "report's ten-minute measurement window. Those charts are complete and " +
-        "were read at full accuracy; their printed weight simply exceeds what " +
-        "the plotter drew inside the window, which is why milk recovery sits " +
-        "below curve accuracy."
+        `${truncated} cow${truncated === 1 ? "" : "s"} ${truncated === 1 ? "was" : "were"} ` +
+        "still milking at the end of the report's ten-minute window, so the " +
+        "flow meter counted milk the plotter had no room to draw. Those charts " +
+        "are complete and were read at full accuracy; it is the two weights " +
+        "above that differ, not the extraction."
       );
     }
     apNote.textContent = notes.join(" ");
