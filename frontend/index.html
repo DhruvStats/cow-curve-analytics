@@ -880,20 +880,20 @@
     }
     apNote.textContent = notes.join(" ");
 
-    // Milk reconciliation. The point of splitting the rows is that the top one
-    // reconciles exactly: where the calibration accepted a chart, the curve's
-    // area and the weight the AMS printed agree to the penny. The second row
-    // carries the entire difference, and names why.
+    // Verification table. The accuracy column grades the extraction against
+    // the line the report drew; the two weight columns are shown as weights,
+    // not divided, so a chart the AMS under-drew does not appear as milk this
+    // code lost.
     apVerify.innerHTML = "";
     const mv = s.milk_verification;
     if (mv && mv.all) {
       const rows = [];
-      if (mv.calibrated) rows.push(["Scaled to printed weight", mv.calibrated]);
-      if (mv.measured_only) rows.push(["Kept as measured", mv.measured_only]);
+      if (mv.full_session) rows.push(["Session ends inside window", mv.full_session]);
+      if (mv.ran_to_window_end) rows.push(["Session runs to window end", mv.ran_to_window_end]);
       rows.push(["All charts", mv.all]);
 
       const head = document.createElement("tr");
-      for (const h of ["Milk verification", "Charts", "On report", "Extracted", "Match"]) {
+      for (const h of ["Verification", "Charts", "Printed", "Drawn", "Accuracy", "Worst"]) {
         const th = document.createElement("th");
         th.textContent = h;
         head.appendChild(th);
@@ -902,18 +902,18 @@
 
       for (const [label, g] of rows) {
         const tr = document.createElement("tr");
-        const exact = g.match_pct !== null && Math.abs(g.match_pct - 100) < 0.01;
         const cells = [
           label,
           String(g.charts),
           g.printed_kg.toFixed(2) + " kg",
-          g.extracted_kg.toFixed(2) + " kg",
-          g.match_pct === null ? "-" : g.match_pct.toFixed(2) + " %",
+          g.drawn_kg.toFixed(2) + " kg",
+          g.accuracy_pct.toFixed(2) + " %",
+          g.worst_pct.toFixed(2) + " %",
         ];
         cells.forEach((text, i) => {
           const td = document.createElement("td");
           td.textContent = text;
-          if (i === 4 && exact) td.className = "pct-ok";
+          if ((i === 4 || i === 5) && g.worst_pct >= 99) td.className = "pct-ok";
           tr.appendChild(td);
         });
         apVerify.appendChild(tr);
