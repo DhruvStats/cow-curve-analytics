@@ -17,9 +17,12 @@ Change a value here only if the report format itself changes.
 # Page layout
 # ---------------------------------------------------------------------------
 
-# The AMS report prints charts in a fixed 2-column, 4-row grid. Rows are
-# located from the header positions rather than assumed, but the column split
-# is taken from this.
+# Fallback grid for the raster path only. The vector path - which handles
+# every report with a drawable layer, and so every report in practice - does
+# not use these: it finds each chart from the position of its own header, and
+# therefore reads whatever grid a report happens to use. A portrait report
+# with eight charts to a page and a landscape one with four both come out
+# right without either being configured here.
 GRID_ROWS = 4
 GRID_COLS = 2
 CHARTS_PER_PAGE = GRID_ROWS * GRID_COLS

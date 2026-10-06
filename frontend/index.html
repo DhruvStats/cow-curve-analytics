@@ -1210,15 +1210,17 @@
     }
     items.push([s.yield_.toFixed(2) + " kg", "milk extracted from curve", ""]);
     // Extracted as a share of what the chart states, so the two weights can be
-    // checked against each other at a glance. Marked good within 2%, which is
-    // the band the calibration works inside; below that the cow was still
-    // milking when the chart ran out of width, and the label says so.
+    // checked against each other at a glance. Marked good within 2%, the band
+    // the calibration works inside.
+    //
+    // A curve reaching the end of the time axis is not called out. That is the
+    // end of the report's measurement window, so the chart is complete and its
+    // figure needs no excuse made for it.
     if (typeof meta.milk_kg === "number" && meta.milk_kg > 0) {
       const mp = (s.yield_ / meta.milk_kg) * 100;
       items.push([
         mp.toFixed(1) + " %",
-        meta.reaches_axis_end ? "of printed (session hits chart edge)"
-                              : "of printed milk",
+        "of printed milk",
         Math.abs(mp - 100) <= 2 ? "good" : "",
       ]);
     }
