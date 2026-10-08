@@ -1,5 +1,5 @@
 """
-Build Cow_Curve_Analytics_Code_Explainer.pdf - a file-by-file walkthrough of
+Build Buffalo_Curve_Analytics_Code_Explainer.pdf - a file-by-file walkthrough of
 the code as it actually stands, in the same visual template as the technical
 explainer.
 
@@ -24,7 +24,7 @@ RULE = colors.HexColor("#cbd5e1")
 ZEBRA = colors.HexColor("#f6f8fb")
 
 W, H = A4
-TITLE = "COW CURVE ANALYTICS"
+TITLE = "BUFFALO CURVE ANALYTICS"
 SUB = "Code Explainer  •  University of Naples Federico II"
 
 ss = {
@@ -103,7 +103,7 @@ def title_page(canv, doc):
     canv.rect(0, 0, W, 99.2, stroke=0, fill=1)
     canv.setFillColor(colors.white)
     canv.setFont("Helvetica-Bold", 28)
-    canv.drawString(56, H - 250, "Cow Curve Analytics")
+    canv.drawString(56, H - 250, "Buffalo Curve Analytics")
     canv.setFillColor(PALE)
     canv.setFont("Helvetica", 14)
     canv.drawString(56, H - 280, "Code Explainer — File by File")
@@ -148,7 +148,7 @@ def build(path):
     doc = BaseDocTemplate(path, pagesize=A4,
                           leftMargin=42.5, rightMargin=42.5,
                           topMargin=46, bottomMargin=36,
-                          title="Cow Curve Analytics — Code Explainer",
+                          title="Buffalo Curve Analytics — Code Explainer",
                           author="DhruvStats")
     doc.addPageTemplates([
         PageTemplate(id="title", frames=[Frame(0, 0, W, H, id="blank")],
@@ -436,4 +436,4 @@ def build(path):
 
 
 if __name__ == "__main__":
-    build("Cow_Curve_Analytics_Code_Explainer.pdf")
+    build("Buffalo_Curve_Analytics_Code_Explainer.pdf")

@@ -61,7 +61,7 @@ def on_page(canvas, doc):
     canvas.rect(0, H - 1.1*cm, W, 1.1*cm, fill=1, stroke=0)
     canvas.setFont("Helvetica-Bold", 8)
     canvas.setFillColor(WHITE)
-    canvas.drawString(1.5*cm, H - 0.72*cm, "COW CURVE ANALYTICS")
+    canvas.drawString(1.5*cm, H - 0.72*cm, "BUFFALO CURVE ANALYTICS")
     canvas.setFont("Helvetica", 8)
     canvas.drawRightString(W - 1.5*cm, H - 0.72*cm,
         "How-To Guide  ·  University of Naples Federico II")
@@ -129,7 +129,7 @@ story = []
 # ── Cover ────────────────────────────────────────────────────────────────────
 story += [
     Spacer(1, 7.5*cm),
-    Paragraph("Cow Curve Analytics", S["cover_title"]),
+    Paragraph("Buffalo Curve Analytics", S["cover_title"]),
     Paragraph("How to Run &amp; Test — Step-by-Step Guide", S["cover_sub"]),
     Spacer(1, 1.2*cm),
     Paragraph("University of Naples Federico II<br/>MSc Data Science", S["cover_meta"]),
@@ -144,7 +144,7 @@ story += [
 story += [
     section_header(1, "What This Package Contains"),
     Paragraph(
-        "Cow Curve Analytics is an offline web application that extracts the two curves "
+        "Buffalo Curve Analytics is an offline web application that extracts the two curves "
         "(milk flow and vacuum pressure) from AMS milking-report PDFs and produces one "
         "CSV file per animal session. Everything runs locally — no internet connection "
         "is used at any point.", S["body"]),
@@ -156,7 +156,7 @@ story += [
         ["demo/reports/", "4 demo PDFs + exact ground truth (64 charts)"],
         ["demo/score_demos.py", "Scores extraction against that ground truth"],
         ["pipeline/csv_synthetic_*/", "Pre-generated pipeline output for the benchmark"],
-        ["Cow_Curve_Analytics_Explainer.pdf", "Technical explainer (method & accuracy)"],
+        ["Buffalo_Curve_Analytics_Explainer.pdf", "Technical explainer (method & accuracy)"],
         ["requirements.txt  ·  Dockerfile", "Dependencies / optional container setup"],
     ], [7*cm, 9*cm]),
     Spacer(1, 0.4*cm),
